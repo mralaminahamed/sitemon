@@ -83,23 +83,35 @@ func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) 
 func (d *Dashboard) Start() error {
 	healthChecker := monitor.NewHealthChecker(d.client)
 
+	d.checkURLs(healthChecker)
+
 	go d.monitorLoop(healthChecker)
 
 	fmt.Println(d.Render())
 	fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
 
-	return nil
-}
-
-func (d *Dashboard) monitorLoop(healthChecker *monitor.HealthChecker) {
 	ticker := time.NewTicker(d.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-d.stopChan:
-			return
+			return nil
 		case <-ticker.C:
+			fmt.Print("\033[2J")
+			fmt.Print("\033[H")
+			fmt.Println(d.Render())
+			fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
+		}
+	}
+}
+
+func (d *Dashboard) monitorLoop(healthChecker *monitor.HealthChecker) {
+	for {
+		select {
+		case <-d.stopChan:
+			return
+		case <-time.After(d.interval):
 			d.checkURLs(healthChecker)
 		}
 	}
@@ -107,6 +119,8 @@ func (d *Dashboard) monitorLoop(healthChecker *monitor.HealthChecker) {
 
 func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 	var wg sync.WaitGroup
+
+	currentResults := make(map[string]*monitor.HealthResult)
 	var totalLatency int64
 	var minLatency int64 = -1
 	var maxLatency int64
@@ -118,18 +132,19 @@ func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 		go func(u string) {
 			defer wg.Done()
 			result, err := healthChecker.Check(u)
-			d.resultsMu.Lock()
 			if err == nil {
-				d.results[u] = result
+				currentResults[u] = result
 			}
-			d.resultsMu.Unlock()
 		}(url)
 	}
 
 	wg.Wait()
 
-	d.resultsMu.RLock()
-	for _, result := range d.results {
+	d.resultsMu.Lock()
+	d.results = currentResults
+	d.resultsMu.Unlock()
+
+	for _, result := range currentResults {
 		latencyMs := result.ResponseTime.Milliseconds()
 		totalLatency += latencyMs
 
@@ -146,18 +161,17 @@ func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 			failureCount++
 		}
 	}
-	d.resultsMu.RUnlock()
 
-	total := len(d.results)
+	total := len(currentResults)
 	if total > 0 {
 		d.stats = DashboardStats{
 			TotalChecks:   total,
 			SuccessCount:  successCount,
 			FailureCount:  failureCount,
 			UptimePercent: float64(successCount) / float64(total) * 100,
-			AvgLatency:    time.Duration(totalLatency / int64(total)),
-			MinLatency:    time.Duration(minLatency),
-			MaxLatency:    time.Duration(maxLatency),
+			AvgLatency:    time.Duration(totalLatency/int64(total)) * time.Millisecond,
+			MinLatency:    time.Duration(minLatency) * time.Millisecond,
+			MaxLatency:    time.Duration(maxLatency) * time.Millisecond,
 		}
 	}
 
