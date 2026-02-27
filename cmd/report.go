@@ -4,24 +4,94 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
+type ReportData struct {
+	GeneratedAt    string     `json:"generated_at"`
+	ReportType     string     `json:"report_type"`
+	Summary        Summary    `json:"summary"`
+	Checks         []Check    `json:"checks,omitempty"`
+	RequestStats   RequestStats `json:"request_stats,omitempty"`
+}
+
+type Summary struct {
+	TotalChecks   int     `json:"total_checks"`
+	Successful    int     `json:"successful"`
+	Failed        int     `json:"failed"`
+	UptimePercent float64 `json:"uptime_percentage"`
+}
+
+type Check struct {
+	URL          string        `json:"url"`
+	Status       string        `json:"status"`
+	StatusCode   int           `json:"status_code"`
+	ResponseTime time.Duration `json:"response_time_ms"`
+	Timestamp    time.Time     `json:"timestamp"`
+}
+
 var reportCmd = &cobra.Command{
 	Use:   "report",
-	Short: "Generate a health report",
-	Long: `Generate a JSON health report with check results.
-Report includes: total checks, successful/failed counts, average latency, and uptime percentage.
-Output to file with --output flag or stdout by default.`,
+	Short: "Generate health or load test report",
+	Long: `Generate a comprehensive JSON report for health checks or load tests.
+Report includes detailed statistics, check history, and performance metrics.
+Can combine multiple check results and request statistics.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		report := map[string]interface{}{
-			"generated_at":     "2026-02-27",
-			"total_checks":     0,
-			"successful":       0,
-			"failed":           0,
-			"average_latency":  "0ms",
-			"uptime_percentage": "0%",
+		report := ReportData{
+			GeneratedAt: time.Now().Format(time.RFC3339),
+			ReportType:  reportType,
+		}
+
+		if checkResultsFile != "" {
+			data, err := os.ReadFile(checkResultsFile)
+			if err != nil {
+				return fmt.Errorf("failed to read check results: %w", err)
+			}
+
+			var checks []Check
+			if err := json.Unmarshal(data, &checks); err != nil {
+				return fmt.Errorf("failed to parse check results: %w", err)
+			}
+
+			report.Checks = checks
+
+			successful := 0
+			failed := 0
+			for _, c := range checks {
+				if c.Status == "UP" {
+					successful++
+				} else {
+					failed++
+				}
+			}
+
+			report.Summary.TotalChecks = len(checks)
+			report.Summary.Successful = successful
+			report.Summary.Failed = failed
+			if len(checks) > 0 {
+				report.Summary.UptimePercent = float64(successful) / float64(len(checks)) * 100
+			}
+		}
+
+		if requestStatsFile != "" {
+			data, err := os.ReadFile(requestStatsFile)
+			if err != nil {
+				return fmt.Errorf("failed to read request stats: %w", err)
+			}
+
+			var stats RequestStats
+			if err := json.Unmarshal(data, &stats); err != nil {
+				return fmt.Errorf("failed to parse request stats: %w", err)
+			}
+
+			report.RequestStats = stats
+
+			report.Summary.TotalChecks = stats.TotalRequests
+			report.Summary.Successful = stats.Successful
+			report.Summary.Failed = stats.Failed
+			report.Summary.UptimePercent = stats.SuccessRate
 		}
 
 		data, err := json.MarshalIndent(report, "", "  ")
@@ -42,10 +112,18 @@ Output to file with --output flag or stdout by default.`,
 	},
 }
 
-var outputPath string
+var (
+	outputPath         string
+	reportType        string
+	checkResultsFile  string
+	requestStatsFile  string
+)
 
 func init() {
 	rootCmd.AddCommand(reportCmd)
 
 	reportCmd.Flags().StringVarP(&outputPath, "output", "o", "", "output file path (default is stdout)")
+	reportCmd.Flags().StringVarP(&reportType, "type", "t", "health", "report type (health, load-test, combined)")
+	reportCmd.Flags().StringVarP(&checkResultsFile, "checks", "c", "", "JSON file with check results")
+	reportCmd.Flags().StringVarP(&requestStatsFile, "stats", "s", "", "JSON file with request statistics")
 }
