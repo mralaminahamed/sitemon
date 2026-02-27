@@ -72,34 +72,32 @@ portman dashboard --url https://example.com
 
 | Command | Description |
 |---------|-------------|
-| `check` | Check health of URLs with optional watch mode |
-| `ssl` | Check SSL certificate details |
-| `schedule` | Run checks on cron schedule |
-| `dashboard` | Interactive TUI dashboard |
-| `history` | View check history from SQLite |
-| `request` | High-volume load testing |
-| `report` | Generate JSON reports |
+| [check](docs/check.md) | Check health of URLs with optional watch mode |
+| [ssl](docs/ssl.md) | Check SSL certificate details |
+| [schedule](docs/schedule.md) | Run checks on cron schedule |
+| [dashboard](docs/dashboard.md) | Interactive TUI dashboard |
+| [history](docs/history.md) | View check history from SQLite |
+| [request](docs/request.md) | High-volume load testing |
+| [report](docs/report.md) | Generate JSON reports |
+
+## Documentation
+
+For detailed documentation, see the [docs](docs/) directory:
+
+- [Check Command](docs/check.md)
+- [SSL Command](docs/ssl.md)
+- [Schedule Command](docs/schedule.md)
+- [Dashboard Command](docs/dashboard.md)
+- [History Command](docs/history.md)
+- [Request Command](docs/request.md)
+- [Report Command](docs/report.md)
+- [Configuration](docs/configuration.md)
 
 ## Configuration
 
 Configuration can be set via `config.yaml`, `.env`, or environment variables.
 
-### Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `PORTMAN_URL` | Default URL |
-| `PORTMAN_WORKERS` | Default workers |
-| `PORTMAN_RPS` | Default RPS |
-| `PORTMAN_TIMEOUT` | Default timeout |
-| `PORTMAN_LOG_LEVEL` | Log level |
-| `PORTMAN_LOG_FILE` | Log file path |
-| `PORTMAN_WEBHOOK_URL` | Webhook URL for alerts |
-| `PORTMAN_TLS_INSECURE` | Skip TLS verification |
-
-## Documentation
-
-For complete documentation, see [DOCS.md](DOCS.md).
+See [Configuration](docs/configuration.md) for details.
 
 ## License
 
