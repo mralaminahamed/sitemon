@@ -11,43 +11,40 @@ import (
 )
 
 var (
-	baseStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240"))
-
-	headerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("86")).
-			Background(lipgloss.Color("236"))
+	cyan    = lipgloss.Color("75")
+	green   = lipgloss.Color("82")
+	red     = lipgloss.Color("196")
+	yellow  = lipgloss.Color("226")
+	gray    = lipgloss.Color("240")
+	magenta = lipgloss.Color("201")
+	white   = lipgloss.Color("255")
 
 	successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("82")).
+			Foreground(green).
 			Bold(true)
 
 	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
+			Foreground(red).
 			Bold(true)
 
 	warningStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("226")).
+			Foreground(yellow).
 			Bold(true)
 
 	infoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("75"))
+			Foreground(cyan)
 
 	disabledStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240"))
+			Foreground(gray)
 
-	tableHeaderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("86")).
-				Bold(true)
-
-	tableRowStyle = lipgloss.NewStyle()
+	urlStyle = lipgloss.NewStyle().
+			Foreground(white)
 )
 
 type Dashboard struct {
 	urls       []string
 	results    map[string]*monitor.HealthResult
+	checking   map[string]bool
 	resultsMu  sync.RWMutex
 	interval   time.Duration
 	client     *http.Client
@@ -56,6 +53,7 @@ type Dashboard struct {
 	height     int
 	stats      DashboardStats
 	lastUpdate time.Time
+	startTime  time.Time
 }
 
 type DashboardStats struct {
@@ -70,13 +68,15 @@ type DashboardStats struct {
 
 func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) *Dashboard {
 	return &Dashboard{
-		urls:      urls,
-		results:   make(map[string]*monitor.HealthResult),
-		interval:  interval,
-		client:    http.NewClient(timeout),
-		stopChan:  make(chan bool),
-		stats:     DashboardStats{},
+		urls:       urls,
+		results:    make(map[string]*monitor.HealthResult),
+		checking:   make(map[string]bool),
+		interval:   interval,
+		client:     http.NewClient(timeout),
+		stopChan:   make(chan bool),
+		stats:      DashboardStats{},
 		lastUpdate: time.Now(),
+		startTime:  time.Now(),
 	}
 }
 
@@ -87,7 +87,7 @@ func (d *Dashboard) Start() error {
 
 	go d.monitorLoop(healthChecker)
 
-	fmt.Println(d.Render())
+	fmt.Print(d.Render())
 	fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
 
 	ticker := time.NewTicker(d.interval)
@@ -100,7 +100,7 @@ func (d *Dashboard) Start() error {
 		case <-ticker.C:
 			fmt.Print("\033[2J")
 			fmt.Print("\033[H")
-			fmt.Println(d.Render())
+			fmt.Print(d.Render())
 			fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
 		}
 	}
@@ -127,11 +127,20 @@ func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 	successCount := 0
 	failureCount := 0
 
+	d.resultsMu.Lock()
+	for _, url := range d.urls {
+		d.checking[url] = true
+	}
+	d.resultsMu.Unlock()
+
 	for _, url := range d.urls {
 		wg.Add(1)
 		go func(u string) {
 			defer wg.Done()
 			result, err := healthChecker.Check(u)
+			d.resultsMu.Lock()
+			d.checking[u] = false
+			d.resultsMu.Unlock()
 			if err == nil {
 				currentResults[u] = result
 			}
@@ -188,103 +197,178 @@ func (d *Dashboard) Render() string {
 
 	var output string
 
-	output += headerStyle.Render(" ╔══════════════════════════════════════════════════════════════════╗ \n")
-	output += headerStyle.Render(" ║                   Portman Health Monitor                    ║ \n")
-	output += headerStyle.Render(" ╠══════════════════════════════════════════════════════════════════╣ \n")
-	output += fmt.Sprintf(" ║  URLs: %d  │  Interval: %s  │  Updated: %s  ║\n",
-		len(d.urls), d.interval, d.lastUpdate.Format("15:04:05"))
-	output += headerStyle.Render(" ╚══════════════════════════════════════════════════════════════════╝ \n\n")
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(magenta).
+		Render("◈ Portman Dashboard")
+
+	info := lipgloss.NewStyle().
+		Foreground(gray).
+		Render(fmt.Sprintf("%d URLs • %s • %s",
+			len(d.urls),
+			d.interval.String(),
+			d.lastUpdate.Format("15:04:05")))
+
+	output += title + "\n" + info + "\n"
+
+	separator := lipgloss.NewStyle().Foreground(cyan).Render("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	output += separator + "\n"
 
 	output += d.renderStatsBar()
 
-	output += tableHeaderStyle.Render("  #  │ URL                                    │ Status    │ Code │ Latency\n")
-	output += tableHeaderStyle.Render(" ────┼────────────────────────────────────────┼───────────┼──────┼─────────\n")
+	numCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(3).AlignHorizontal(lipgloss.Left)
+	urlCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(32)
+	statusCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(12)
+	codeCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(6)
+	latencyCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(10)
+	infoCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(14)
+
+	output += numCol.Render("#") + "  " +
+		urlCol.Render("URL") + "  " +
+		statusCol.Render("STATUS") + "  " +
+		codeCol.Render("CODE") + "  " +
+		latencyCol.Render("LATENCY") + "  " +
+		infoCol.Render("INFO") + "\n"
+
+	sepStyle := lipgloss.NewStyle().Foreground(gray)
+	output += sepStyle.Render("───") + "  " +
+		sepStyle.Render("────────────────────────────────") + "  " +
+		sepStyle.Render("────────────") + "  " +
+		sepStyle.Render("──────") + "  " +
+		sepStyle.Render("──────────") + "  " +
+		sepStyle.Render("──────────────") + "\n"
 
 	for i, url := range d.urls {
 		result, ok := d.results[url]
+		isChecking := d.checking[url]
 
-		if !ok {
-			output += fmt.Sprintf("  %d  │ %-36s │ %-9s │ %4s │ %s\n",
-				i+1,
-				truncateURL(url),
-				disabledStyle.Render("Pending"),
-				"-",
-				disabledStyle.Render("-"))
+		rowNum := numCol.Render(fmt.Sprintf("%d", i+1))
+		urlCell := urlStyle.Render(truncateURL(url, 30))
+
+		if isChecking {
+			statusCell := infoStyle.Render("● Checking")
+			codeCell := infoStyle.Render("...")
+			latencyCell := infoStyle.Render("...")
+			infoCell := infoStyle.Render("in progress")
+			output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
 			continue
 		}
 
-		statusStr := result.Status
-		statusStyle := infoStyle
-		statusIcon := "○"
+		if !ok {
+			statusCell := disabledStyle.Render("○ Pending")
+			codeCell := disabledStyle.Render("---")
+			latencyCell := disabledStyle.Render("---")
+			infoCell := disabledStyle.Render("awaiting")
+			output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
+			continue
+		}
+
+		var statusCell, codeCell, latencyCell, infoCell string
 
 		switch result.Status {
 		case "UP":
-			statusStyle = successStyle
-			statusIcon = "●"
+			statusCell = successStyle.Render("● UP")
+			codeCell = successStyle.Render(fmt.Sprintf("%d", result.StatusCode))
+			latencyCell = d.getLatencyStyle(result.ResponseTime).Render(d.formatLatency(result.ResponseTime))
+			infoCell = successStyle.Render("healthy")
 		case "DOWN":
-			statusStyle = errorStyle
-			statusIcon = "✗"
+			statusCell = errorStyle.Render("✗ DOWN")
+			codeCell = errorStyle.Render(fmt.Sprintf("%d", result.StatusCode))
+			latencyCell = errorStyle.Render(d.formatLatency(result.ResponseTime))
+			if result.Error != "" {
+				infoCell = errorStyle.Render(truncateError(result.Error, 12))
+			} else {
+				infoCell = errorStyle.Render("server error")
+			}
 		case "WARNING":
-			statusStyle = warningStyle
-			statusIcon = "⚠"
+			statusCell = warningStyle.Render("⚠ WARN")
+			codeCell = warningStyle.Render(fmt.Sprintf("%d", result.StatusCode))
+			latencyCell = warningStyle.Render(d.formatLatency(result.ResponseTime))
+			infoCell = warningStyle.Render("client error")
+		case "REDIRECT":
+			statusCell = infoStyle.Render("↪ REDIRECT")
+			codeCell = infoStyle.Render(fmt.Sprintf("%d", result.StatusCode))
+			latencyCell = infoStyle.Render(d.formatLatency(result.ResponseTime))
+			infoCell = infoStyle.Render("redirected")
 		}
 
-		output += fmt.Sprintf("  %d  │ %-36s │ %s %-6s │ %4d │ %s\n",
-			i+1,
-			truncateURL(url),
-			statusStyle.Render(statusIcon),
-			statusStyle.Render(statusStr),
-			result.StatusCode,
-			result.ResponseTime.String(),
-		)
+		output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
 	}
+
+	output += "\n" + disabledStyle.Render("Ctrl+C to exit • "+d.interval.String()+" refresh • "+d.uptime())
 
 	return output
 }
 
-func (d *Dashboard) renderStatsBar() string {
-	uptimeColor := lipgloss.Color("82")
-	if d.stats.UptimePercent < 80 {
-		uptimeColor = lipgloss.Color("226")
+func (d *Dashboard) getLatencyStyle(latency time.Duration) lipgloss.Style {
+	ms := latency.Milliseconds()
+	switch {
+	case ms < 200:
+		return successStyle
+	case ms < 500:
+		return infoStyle
+	case ms < 1000:
+		return warningStyle
+	default:
+		return errorStyle
 	}
-	if d.stats.UptimePercent < 50 {
-		uptimeColor = lipgloss.Color("196")
-	}
-
-	uptimeStyle := lipgloss.NewStyle().Foreground(uptimeColor)
-
-	stats := fmt.Sprintf("  ┌──────────────┬──────────────┬──────────────┬──────────────┐\n")
-
-	stats += fmt.Sprintf("  │ Total: %-5d│ UP: %-7d│ DOWN: %-6d│ Uptime: %s│\n",
-		d.stats.TotalChecks,
-		d.stats.SuccessCount,
-		d.stats.FailureCount,
-		uptimeStyle.Render(fmt.Sprintf("%5.1f%%", d.stats.UptimePercent)))
-
-	stats += fmt.Sprintf("  ├──────────────┼──────────────┼──────────────┼──────────────┤\n")
-
-	if d.stats.TotalChecks > 0 {
-		stats += fmt.Sprintf("  │ Avg: %-8s│ Min: %-8s│ Max: %-8s│            │\n",
-			d.stats.AvgLatency.String(),
-			d.stats.MinLatency.String(),
-			d.stats.MaxLatency.String())
-	} else {
-		stats += fmt.Sprintf("  │ %-14s│ %-14s│ %-14s│            │\n",
-			disabledStyle.Render("Avg: -"),
-			disabledStyle.Render("Min: -"),
-			disabledStyle.Render("Max: -"))
-	}
-
-	stats += fmt.Sprintf("  └──────────────┴──────────────┴──────────────┴──────────────┘\n\n")
-
-	return stats
 }
 
-func truncateURL(url string) string {
-	if len(url) > 36 {
-		return url[:33] + "..."
+func (d *Dashboard) formatLatency(latency time.Duration) string {
+	ms := latency.Milliseconds()
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.1fs", float64(ms)/1000)
+}
+
+func truncateURL(url string, maxLen int) string {
+	if len(url) > maxLen {
+		return url[:maxLen-3] + "..."
 	}
 	return url
+}
+
+func truncateError(err string, maxLen int) string {
+	if len(err) > maxLen {
+		return err[:maxLen-3] + "..."
+	}
+	return err
+}
+
+func (d *Dashboard) uptime() string {
+	return time.Since(d.startTime).Round(time.Second).String()
+}
+
+func (d *Dashboard) renderStatsBar() string {
+	uptimeColor := green
+	if d.stats.UptimePercent < 80 {
+		uptimeColor = yellow
+	}
+	if d.stats.UptimePercent < 50 {
+		uptimeColor = red
+	}
+
+	boxStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(gray).
+		Padding(0, 1).
+		MarginRight(1)
+
+	totalBox := boxStyle.Copy().BorderForeground(cyan).Render(fmt.Sprintf(" TOTAL %d ", d.stats.TotalChecks))
+	upBox := boxStyle.Copy().BorderForeground(green).Render(fmt.Sprintf(" UP %d ", d.stats.SuccessCount))
+	downBox := boxStyle.Copy().BorderForeground(red).Render(fmt.Sprintf(" DOWN %d ", d.stats.FailureCount))
+	uptimeBox := boxStyle.Copy().BorderForeground(uptimeColor).Render(fmt.Sprintf(" %.1f%% ", d.stats.UptimePercent))
+
+	row1 := "  " + totalBox + upBox + downBox + uptimeBox + "\n"
+
+	avgBox := boxStyle.Copy().BorderForeground(cyan).Render(fmt.Sprintf(" AVG %s ", d.stats.AvgLatency.String()))
+	minBox := boxStyle.Copy().BorderForeground(green).Render(fmt.Sprintf(" MIN %s ", d.stats.MinLatency.String()))
+	maxBox := boxStyle.Copy().BorderForeground(yellow).Render(fmt.Sprintf(" MAX %s ", d.stats.MaxLatency.String()))
+
+	row2 := "  " + avgBox + minBox + maxBox + "\n"
+
+	return row1 + row2
 }
 
 func (d *Dashboard) GetResults() map[string]*monitor.HealthResult {
