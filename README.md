@@ -4,17 +4,20 @@ Portfolio HTTP Request Manager & Health Check Tool
 
 ## Overview
 
-Portman is a Go-based CLI tool for HTTP request management and portfolio site health monitoring. It's designed for terminal usage with support for health checks, high-volume request testing, and report generation.
+Portman is a Go-based CLI tool for HTTP request management and portfolio site health monitoring. It provides health checks, continuous monitoring, high-volume request testing, SSL certificate monitoring, scheduled checks, and comprehensive reporting.
 
 ## Features
 
 - **Health Checks** - Monitor URL availability and response times
 - **Watch Mode** - Continuous health monitoring at specified intervals
+- **SSL Certificate Monitoring** - Check expiry, issuer, protocol details
+- **Scheduled Checks** - Cron-based automated health monitoring
+- **Real-time Dashboard** - Interactive TUI for live monitoring
+- **Webhook Alerts** - Slack, Discord, Telegram notifications
 - **High-Volume Request Testing** - Load testing with configurable workers and RPS limits
 - **Detailed Latency Stats** - P50, P90, P95, P99 percentiles
-- **Report Generation** - Export health check and load test results to JSON
-- **Rate Limiting** - Built-in RPS limiter to protect target servers
-- **Structured Logging** - JSON logging via zerolog with file output
+- **History Database** - SQLite storage for historical data
+- **Content Validation** - Verify response contains specific text
 
 ## Installation
 
@@ -41,10 +44,16 @@ go install
 portman check --url https://example.com
 ```
 
-### Watch Mode
+### SSL Certificate Check
 
 ```bash
-portman check --url https://example.com --watch --interval 30s
+portman ssl --url https://example.com
+```
+
+### Watch Mode with Alerts
+
+```bash
+portman check --url https://example.com --watch --webhook https://hooks.slack.com/xxx
 ```
 
 ### Load Testing
@@ -53,37 +62,27 @@ portman check --url https://example.com --watch --interval 30s
 portman request --url https://example.com --workers 100 --rps 500 --count 10000
 ```
 
-### Generate Report
+### Dashboard
 
 ```bash
-portman report --output report.json
+portman dashboard --url https://example.com
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `portman check` | Check health of URLs with status monitoring |
-| `portman request` | Send high-volume HTTP requests for load testing |
-| `portman report` | Generate JSON reports from check results or stats |
-| `portman version` | Show version information |
-
-For detailed usage and examples, see [DOCS.md](DOCS.md).
+| `check` | Check health of URLs with optional watch mode |
+| `ssl` | Check SSL certificate details |
+| `schedule` | Run checks on cron schedule |
+| `dashboard` | Interactive TUI dashboard |
+| `history` | View check history from SQLite |
+| `request` | High-volume load testing |
+| `report` | Generate JSON reports |
 
 ## Configuration
 
-Configuration can be set via `config.yaml` or environment variables:
-
-```yaml
-url: ""
-workers: 10
-rps: 100
-timeout: 10
-log_level: info
-log_file: ""
-method: "GET"
-tls_insecure: false
-```
+Configuration can be set via `config.yaml`, `.env`, or environment variables.
 
 ### Environment Variables
 
@@ -95,26 +94,8 @@ tls_insecure: false
 | `PORTMAN_TIMEOUT` | Default timeout |
 | `PORTMAN_LOG_LEVEL` | Log level |
 | `PORTMAN_LOG_FILE` | Log file path |
+| `PORTMAN_WEBHOOK_URL` | Webhook URL for alerts |
 | `PORTMAN_TLS_INSECURE` | Skip TLS verification |
-
-## Safe Testing Thresholds
-
-| VPS RAM | Max Workers (No Cache) | Max Workers (With Cache) |
-|---------|------------------------|--------------------------|
-| 1 GB    | 10–15                  | 50–100                   |
-| 2 GB    | 20–30                  | 100–200                  |
-| 4 GB    | 40–60                  | 300–500                  |
-| 8 GB    | 80–120                 | 600–1,000                |
-
-## Tech Stack
-
-- **CLI** - spf13/cobra
-- **Config** - spf13/viper
-- **HTTP Client** - go-resty/resty/v2
-- **TUI** - charmbracelet/bubbletea
-- **Logging** - rs/zerolog
-- **Rate Limiting** - golang.org/x/time/rate
-- **Concurrency** - golang.org/x/sync/errgroup
 
 ## Documentation
 

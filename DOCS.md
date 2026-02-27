@@ -2,7 +2,7 @@
 
 ## Overview
 
-Portman is a CLI tool for HTTP request management and portfolio site health monitoring. It provides health checks, continuous monitoring, high-volume request testing, and JSON report generation.
+Portman is a CLI tool for HTTP request management and portfolio site health monitoring. It provides health checks, continuous monitoring, high-volume request testing, SSL certificate monitoring, scheduled checks, and comprehensive reporting.
 
 ## Installation
 
@@ -66,14 +66,6 @@ Show version information:
 portman version
 ```
 
-Output:
-```
-Portman version dev
-  commit: none
-  date: unknown
-  built by: unknown
-```
-
 ---
 
 ### Health Check (`check`)
@@ -94,6 +86,13 @@ portman check [url...]
 | `--timeout` | - | 10s | Request timeout |
 | `--json` | `-j` | false | Output in JSON format |
 | `--output` | `-o` | - | Output file path |
+| `--webhook` | - | - | Webhook URL for alerts (Slack, Discord, Telegram) |
+| `--max-latency` | - | - | Maximum allowed latency before alert |
+| `--contains` | - | - | Response must contain these strings |
+| `--not-contains` | - | - | Response must NOT contain these strings |
+| `--check-ssl` | - | false | Check SSL certificate |
+| `--save` | - | false | Save results to history database |
+| `--db` | - | - | Path to history database |
 
 #### Examples
 
@@ -108,41 +107,163 @@ portman check -u https://example.com -u https://google.com
 portman check https://example.com https://google.com
 ```
 
-**With custom timeout:**
+**Watch mode with alerts:**
 ```bash
-portman check --url https://example.com --timeout 5s
+portman check -u https://example.com --watch --webhook https://hooks.slack.com/services/xxx
 ```
 
-**Watch mode (continuous monitoring):**
+**Content validation:**
 ```bash
-portman check --url https://example.com --watch --interval 30s
-portman check -u https://example.com -w -i 1m
+portman check -u https://example.com --contains "Welcome" --not-contains "Error"
 ```
 
-**JSON output:**
+**Check SSL certificate:**
 ```bash
-portman check -u https://example.com --json
+portman check -u https://example.com --check-ssl
 ```
 
-**Save results to file:**
+**Save to history:**
 ```bash
-portman check -u https://example.com -o results.json
+portman check -u https://example.com --save
+```
+
+---
+
+### SSL Certificate (`ssl`)
+
+Check SSL certificate details for URLs.
+
+```bash
+portman ssl [url...]
+```
+
+#### Options
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--url` | `-u` | [] | URL(s) to check |
+| `--timeout` | - | 10s | Request timeout |
+
+#### Examples
+
+```bash
+portman ssl -u https://example.com
+portman ssl https://example.com https://google.com
 ```
 
 #### Sample Output
 
 ```
-[12:59:26] ✓ https://example.com - 200 (UP) in 42.9225ms
-[12:59:28] ✓ https://google.com - 200 (UP) in 1.581973375s
+=== SSL Certificate: https://example.com ===
+Status:     ✓ Valid
+Issuer:     SSL Corporation
+Subject:    example.com
+Valid From: 2026-02-13 18:53:48
+Valid Until: 2026-05-14 18:57:50
+Days Left:  76 days
+Protocol:   TLS 772
+Cipher:     0x1301
+```
 
---- Summary ---
-Total Checks: 2
-Successful: 2
-Failed: 0
-Uptime: 100.00%
-Avg Response Time: 811ms
-Min Response Time: 42.9225ms
-Max Response Time: 1.581973375s
+---
+
+### Schedule (`schedule`)
+
+Run health checks on a cron schedule.
+
+```bash
+portman schedule --cron "*/5 * * * *" --url https://example.com
+```
+
+#### Options
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--cron` | - | - | Cron expression (e.g., `*/5 * * * *`) |
+| `--url` | `-u` | [] | URL(s) to check |
+| `--timeout` | - | 10s | Request timeout |
+| `--webhook` | - | - | Webhook URL for alerts |
+
+#### Cron Examples
+
+```bash
+# Every 5 minutes
+portman schedule --cron "*/5 * * * *" -u https://example.com
+
+# Every hour
+portman schedule --cron "0 * * * *" -u https://example.com
+
+# Every day at midnight
+portman schedule --cron "0 0 * * *" -u https://example.com
+
+# With webhook notifications
+portman schedule --cron "*/15 * * * *" -u https://example.com --webhook https://hooks.slack.com/xxx
+```
+
+---
+
+### Dashboard (`dashboard`)
+
+Run interactive TUI dashboard for real-time monitoring.
+
+```bash
+portman dashboard --url https://example.com
+```
+
+#### Options
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--url` | `-u` | [] | URL(s) to monitor |
+| `--interval` | - | 5s | Refresh interval |
+| `--timeout` | - | 10s | Request timeout |
+
+#### Examples
+
+```bash
+portman dashboard -u https://example.com
+portman dashboard -u https://example.com -u https://google.com --interval 10s
+```
+
+---
+
+### History (`history`)
+
+View health check history from SQLite database.
+
+```bash
+portman history
+```
+
+#### Options
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--db` | - | ~/.portman/history.db | Path to history database |
+| `--limit` | `-n` | 50 | Number of records to show |
+| `--from` | - | - | Start date (YYYY-MM-DD) |
+| `--to` | - | - | End date (YYYY-MM-DD) |
+| `--stats` | - | - | Show statistics for URL |
+| `--export` | - | false | Export all history as JSON |
+| `--output` | `-o` | - | Output file for export |
+
+#### Examples
+
+```bash
+# View recent history
+portman history
+
+# Show last 100 records
+portman history --limit 100
+
+# Show statistics for URL
+portman history --stats https://example.com
+
+# Export to JSON
+portman history --export -o history.json
+
+# Filter by date
+portman history --from 2026-01-01 --to 2026-02-27
 ```
 
 ---
@@ -180,77 +301,16 @@ portman request -u https://example.com
 portman request -u https://example.com -w 50 -r 1000 -n 50000
 ```
 
-**Fastest method (HEAD - no body download):**
+**HEAD method (fastest):**
 ```bash
 portman request -u https://example.com -m HEAD -w 100 -r 5000 -n 100000
-```
-
-**POST request:**
-```bash
-portman request -u https://example.com/api/submit -m POST -w 20 -r 200 -n 5000
-```
-
-**PUT request:**
-```bash
-portman request -u https://example.com/api/update -m PUT -w 10 -r 100 -n 1000
-```
-
-**PATCH request:**
-```bash
-portman request -u https://example.com/api/patch -m PATCH -w 10 -r 100 -n 1000
-```
-
-**DELETE request:**
-```bash
-portman request -u https://example.com/api/resource/123 -m DELETE -w 10 -r 100 -n 1000
-```
-
-**OPTIONS request:**
-```bash
-portman request -u https://example.com -m OPTIONS -n 100
-```
-
-**JSON output:**
-```bash
-portman request -u https://example.com --json
-```
-
-**Save stats to file:**
-```bash
-portman request -u https://example.com -s stats.json
-```
-
-#### Sample Output
-
-```
-======================================
-Target URL:     https://example.com
-Method:        GET
-Workers:       10
-RPS Limit:     100
---------------------------------------
-Total Requests: 1000
-Successful:     998 (99.80%)
-Failed:         2
-Duration:       10.234s
-Requests/sec:   97.72
---------------------------------------
-Latency Stats (ms):
-  Min:    11.41ms
-  Avg:    18ms
-  Max:    53.74ms
-  P50:    14.94ms
-  P90:    40.95ms
-  P95:    42.70ms
-  P99:    53.74ms
-======================================
 ```
 
 ---
 
 ### Report (`report`)
 
-Generate a comprehensive JSON report for health checks or load tests.
+Generate a comprehensive JSON report.
 
 ```bash
 portman report
@@ -260,63 +320,10 @@ portman report
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--output` | `-o` | - | Output file path (default is stdout) |
+| `--output` | `-o` | - | Output file path |
 | `--type` | `-t` | health | Report type (health, load-test, combined) |
 | `--checks` | `-c` | - | JSON file with check results |
 | `--stats` | `-s` | - | JSON file with request statistics |
-
-#### Examples
-
-**Output to file:**
-```bash
-portman report -o report.json
-```
-
-**Output to stdout:**
-```bash
-portman report
-```
-
-**Generate from check results:**
-```bash
-portman check -u https://example.com -o checks.json
-portman report --checks checks.json -o report.json
-```
-
-**Generate from request stats:**
-```bash
-portman request -u https://example.com -s stats.json
-portman report --stats stats.json -o report.json
-```
-
-**Combined report:**
-```bash
-portman report --checks checks.json --stats stats.json -o combined.json
-```
-
-#### Sample Output
-
-```json
-{
-  "generated_at": "2026-02-27T12:00:00Z",
-  "report_type": "health",
-  "summary": {
-    "total_checks": 100,
-    "successful": 98,
-    "failed": 2,
-    "uptime_percentage": 98
-  },
-  "checks": [
-    {
-      "url": "https://example.com",
-      "status": "UP",
-      "status_code": 200,
-      "response_time_ms": 45000000,
-      "timestamp": "2026-02-27T12:00:01Z"
-    }
-  ]
-}
-```
 
 ---
 
@@ -358,12 +365,45 @@ headers:
 | `PORTMAN_OUTPUT_FORMAT` | Output format (text, json) |
 | `PORTMAN_METHOD` | Default HTTP method |
 | `PORTMAN_TLS_INSECURE` | Skip TLS verification |
+| `PORTMAN_DB_PATH` | History database path |
+| `PORTMAN_WEBHOOK_URL` | Webhook URL for alerts |
+| `PORTMAN_MAX_LATENCY` | Max latency threshold |
+
+### .env File
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+---
+
+## Webhook Notifications
+
+Portman supports sending alerts to various platforms when endpoints go down or recover.
+
+### Slack
+
+```bash
+portman check -u https://example.com --watch --webhook https://hooks.slack.com/services/xxx
+```
+
+### Discord
+
+```bash
+portman check -u https://example.com --watch --webhook https://discord.com/api/webhooks/xxx
+```
+
+### Telegram
+
+```bash
+portman check -u https://example.com --watch --webhook https://api.telegram.org/botxxx/sendMessage?chat_id=xxx
+```
 
 ---
 
 ## Safe Testing Thresholds
-
-### VPS Memory Limits
 
 | VPS RAM | Max Workers (No Cache) | Max Workers (With Cache) |
 |---------|----------------------|------------------------|
@@ -372,111 +412,78 @@ headers:
 | 4 GB    | 40–60                | 300–500                |
 | 8 GB    | 80–120               | 600–1,000              |
 
-### Performance Tips
-
-1. **Use HEAD method** - Fastest, doesn't download response body
-2. **Increase workers** - More concurrent connections
-3. **Match RPS to network** - Don't exceed your upload bandwidth
-4. **Monitor target server** - Watch for CPU/memory saturation
-
----
-
-## Logging
-
-### Log Levels
-
-- `debug` - Detailed debug information
-- `info` - Normal operation (default)
-- `warn` - Warning messages
-- `error` - Error messages only
-
-### Log to File
-
-```bash
-portman check --url https://example.com --log-file /tmp/portman.log
-```
-
-### Example
-
-```bash
-portman check --url https://example.com --log-level debug
-```
-
 ---
 
 ## Use Cases
 
-### Portfolio Site Monitoring
+### Basic Monitoring
 
 ```bash
-# Daily health check
-portman check --url https://yourportfolio.com
+# Single URL check
+portman check -u https://example.com
 
 # Multiple URLs
-portman check -u https://yourportfolio.com -u https://blog.yourportfolio.com
+portman check -u https://example.com -u https://api.example.com
+```
 
-# Continuous monitoring
-portman check --url https://yourportfolio.com --watch --interval 5m
+### Continuous Monitoring with Alerts
 
-# Save results for later analysis
-portman check -u https://yourportfolio.com -o health_results.json
+```bash
+# Watch mode with Slack webhook
+portman check -u https://example.com --watch --webhook https://hooks.slack.com/xxx
+
+# With latency threshold
+portman check -u https://example.com --watch --max-latency 2s --webhook https://hooks.slack.com/xxx
+```
+
+### Scheduled Monitoring
+
+```bash
+# Every 5 minutes with alerts
+portman schedule --cron "*/5 * * * *" -u https://example.com --webhook https://hooks.slack.com/xxx
+
+# Hourly checks
+portman schedule --cron "0 * * * *" -u https://example.com https://api.example.com
+```
+
+### SSL Certificate Monitoring
+
+```bash
+# Check SSL for multiple URLs
+portman ssl -u https://example.com -u https://google.com
+```
+
+### Real-time Dashboard
+
+```bash
+# Interactive dashboard
+portman dashboard -u https://example.com -u https://google.com --interval 5s
 ```
 
 ### Load Testing
 
 ```bash
-# Light load test
-portman request -u https://yourportfolio.com -w 20 -r 100 -n 1000
+# Basic load test
+portman request -u https://example.com -w 50 -r 500 -n 10000
 
-# Medium load test
-portman request -u https://yourportfolio.com -w 50 -r 500 -n 10000
-
-# Heavy load test
-portman request -u https://yourportfolio.com -w 100 -r 1000 -n 50000
-
-# Extreme stress test (use with caution)
-portman request -u https://yourportfolio.com -m HEAD -w 200 -r 5000 -n 100000
-
-# Save detailed stats
-portman request -u https://yourportfolio.com -s load_test_stats.json
+# Stress test with HEAD
+portman request -u https://example.com -m HEAD -w 100 -r 5000 -n 50000
 ```
 
-### API Testing
+### History and Analytics
 
 ```bash
-# Test API health endpoint
-portman request -u https://api.example.com/health -m GET
+# Enable history saving
+portman check -u https://example.com --save
 
-# Test POST endpoint
-portman request -u https://api.example.com/users -m POST -w 10 -r 50
+# View history
+portman history
 
-# Test PUT endpoint
-portman request -u https://api.example.com/users/123 -m PUT -w 10 -r 50
+# Get statistics
+portman history --stats https://example.com
 
-# Test PATCH endpoint
-portman request -u https://api.example.com/users/123 -m PATCH -w 10 -r 50
-
-# Test DELETE endpoint
-portman request -u https://api.example.com/users/123 -m DELETE -w 5 -r 20
-
-# Check allowed methods
-portman request -u https://api.example.com/endpoint -m OPTIONS
-```
-
-### Generate Reports
-
-```bash
-# Run health checks and save
-portman check -u https://example.com -u https://google.com -o checks.json
-
-# Run load test and save stats
-portman request -u https://example.com -s stats.json
-
-# Generate health report
-portman report --checks checks.json -o health_report.json
-
-# Generate load test report
-portman report --stats stats.json -o load_report.json
+# Export history
+portman history --export -o backup.json
 ```
 
 ---
@@ -485,15 +492,13 @@ portman report --stats stats.json -o load_report.json
 
 ### Connection Errors
 
-If you see connection errors:
 - Check if the URL is correct
 - Increase timeout with `--timeout`
 - Check firewall/network settings
-- Try `--tls-insecure` if using self-signed cert
+- Try setting `tls_insecure: true` in config for self-signed certs
 
 ### High Failure Rate
 
-If seeing many failures:
 - Reduce workers/RPS
 - Check target server logs
 - Ensure rate limiting on target server
@@ -501,21 +506,9 @@ If seeing many failures:
 
 ### Performance Issues
 
-If tool is slow:
 - Use HEAD method for faster tests
 - Increase workers for more concurrency
 - Check your network upload speed
-
-### TLS Certificate Errors
-
-If you get certificate errors:
-```bash
-# In config.yaml
-tls_insecure: true
-
-# Or use environment variable
-export PORTMAN_TLS_INSECURE=true
-```
 
 ---
 
