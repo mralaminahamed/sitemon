@@ -46,15 +46,15 @@ func InitConfig() error {
 	viper.SetDefault("retry_wait_ms", 500)
 	viper.SetDefault("tls_insecure", false)
 
-	viper.BindEnv("url", "SITEMON_URL", "PORTMAN_URL")
-	viper.BindEnv("workers", "SITEMON_WORKERS", "PORTMAN_WORKERS")
-	viper.BindEnv("rps", "SITEMON_RPS", "PORTMAN_RPS")
-	viper.BindEnv("timeout", "SITEMON_TIMEOUT", "PORTMAN_TIMEOUT")
-	viper.BindEnv("log_level", "SITEMON_LOG_LEVEL", "PORTMAN_LOG_LEVEL")
-	viper.BindEnv("log_file", "SITEMON_LOG_FILE", "PORTMAN_LOG_FILE")
-	viper.BindEnv("output_format", "SITEMON_OUTPUT_FORMAT", "PORTMAN_OUTPUT_FORMAT")
-	viper.BindEnv("method", "SITEMON_METHOD", "PORTMAN_METHOD")
-	viper.BindEnv("tls_insecure", "SITEMON_TLS_INSECURE", "PORTMAN_TLS_INSECURE")
+	viper.BindEnv("url", "SITEMON_URL")
+	viper.BindEnv("workers", "SITEMON_WORKERS")
+	viper.BindEnv("rps", "SITEMON_RPS")
+	viper.BindEnv("timeout", "SITEMON_TIMEOUT")
+	viper.BindEnv("log_level", "SITEMON_LOG_LEVEL")
+	viper.BindEnv("log_file", "SITEMON_LOG_FILE")
+	viper.BindEnv("output_format", "SITEMON_OUTPUT_FORMAT")
+	viper.BindEnv("method", "SITEMON_METHOD")
+	viper.BindEnv("tls_insecure", "SITEMON_TLS_INSECURE")
 
 	if err := viper.ReadInConfig(); err != nil {
 		var pathErr *os.PathError
