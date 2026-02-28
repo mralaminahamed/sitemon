@@ -1,6 +1,6 @@
 # Configuration
 
-Portman can be configured via config file, environment variables, or `.env` file.
+Sitemon can be configured via config file, environment variables, or `.env` file.
 
 ## Config File
 
@@ -34,18 +34,18 @@ headers:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORTMAN_URL` | - | Default URL |
-| `PORTMAN_WORKERS` | 10 | Default workers |
-| `PORTMAN_RPS` | 100 | Default RPS |
-| `PORTMAN_TIMEOUT` | 10 | Default timeout (seconds) |
-| `PORTMAN_LOG_LEVEL` | info | Log level (debug, info, warn, error) |
-| `PORTMAN_LOG_FILE` | - | Log file path |
-| `PORTMAN_OUTPUT_FORMAT` | text | Output format (text, json) |
-| `PORTMAN_METHOD` | GET | Default HTTP method |
-| `PORTMAN_TLS_INSECURE` | false | Skip TLS verification |
-| `PORTMAN_DB_PATH` | ~/.sitemon/history.db | History database path |
-| `PORTMAN_WEBHOOK_URL` | - | Webhook URL for alerts |
-| `PORTMAN_MAX_LATENCY` | - | Max latency threshold |
+| `SITEMON_URL` | - | Default URL |
+| `SITEMON_WORKERS` | 10 | Default workers |
+| `SITEMON_RPS` | 100 | Default RPS |
+| `SITEMON_TIMEOUT` | 10 | Default timeout (seconds) |
+| `SITEMON_LOG_LEVEL` | info | Log level (debug, info, warn, error) |
+| `SITEMON_LOG_FILE` | - | Log file path |
+| `SITEMON_OUTPUT_FORMAT` | text | Output format (text, json) |
+| `SITEMON_METHOD` | GET | Default HTTP method |
+| `SITEMON_TLS_INSECURE` | false | Skip TLS verification |
+| `SITEMON_DB_PATH` | ~/.sitemon/history.db | History database path |
+| `SITEMON_WEBHOOK_URL` | - | Webhook URL for alerts |
+| `SITEMON_MAX_LATENCY` | - | Max latency threshold |
 
 ## .env File
 
@@ -58,14 +58,14 @@ cp .env.example .env
 Edit the values:
 
 ```env
-PORTMAN_URL=
-PORTMAN_WORKERS=10
-PORTMAN_RPS=100
-PORTMAN_TIMEOUT=10
-PORTMAN_LOG_LEVEL=info
-PORTMAN_LOG_FILE=
-PORTMAN_WEBHOOK_URL=
-PORTMAN_TLS_INSECURE=false
+SITEMON_URL=
+SITEMON_WORKERS=10
+SITEMON_RPS=100
+SITEMON_TIMEOUT=10
+SITEMON_LOG_LEVEL=info
+SITEMON_LOG_FILE=
+SITEMON_WEBHOOK_URL=
+SITEMON_TLS_INSECURE=false
 ```
 
 ## Priority
@@ -88,7 +88,7 @@ For servers with self-signed certificates:
 tls_insecure: true
 
 # Via environment
-export PORTMAN_TLS_INSECURE=true
+export SITEMON_TLS_INSECURE=true
 
 # Via CLI (not available, use config)
 ```
