@@ -1,12 +1,12 @@
-# Portman - AGENTS.md
+# Sitemon - AGENTS.md
 
 ## Project Overview
 
-**Portman** (Portfolio Manager) is a Go-based CLI tool for HTTP request management and portfolio site health monitoring. It's designed for terminal usage with support for health checks, high-volume request testing, and report generation.
+**Sitemon** (Site Monitor) is a Go-based CLI tool for HTTP request management and website health monitoring. It's designed for terminal usage with support for health checks, high-volume request testing, and report generation.
 
 - **Language**: Go 1.22+
 - **Type**: Terminal CLI Application
-- **Module**: `github.com/mralaminahamed/portman`
+- **Module**: `github.com/mralaminahamed/sitemon`
 
 ## Tech Stack
 
@@ -26,7 +26,7 @@
 ## Project Structure
 
 ```
-portman/
+sitemon/
 ├── cmd/
 │   ├── root.go          # Root cobra command, global flags
 │   ├── check.go         # Health check subcommand
@@ -51,16 +51,16 @@ portman/
 
 ```bash
 # Health check
-portman check --url https://yourdomain.com
+sitemon check --url https://yourdomain.com
 
 # Watch mode (continuous health monitoring)
-portman check --watch --interval 30s
+sitemon check --watch --interval 30s
 
 # High-volume request testing
-portman request --url https://yourdomain.com --workers 100 --rps 500
+sitemon request --url https://yourdomain.com --workers 100 --rps 500
 
 # Generate report
-portman report --output report.json
+sitemon report --output report.json
 ```
 
 ## Key Design Principles

@@ -4,22 +4,23 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mralaminahamed/sitemon/internal/config"
+	"github.com/mralaminahamed/sitemon/internal/logger"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/config"
-	"github.com/mralaminahamed/portman/internal/logger"
 )
 
 var (
-	version   = "dev"
-	commit    = "none"
-	date      = "unknown"
-	builtBy   = "unknown"
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	builtBy = "unknown"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "portman",
-	Short: "Portfolio HTTP Request Manager & Health Check Tool",
-	Long: `Portman is a CLI tool for HTTP request management and portfolio site health monitoring.
+	Use:   "sitemon",
+	Short: "Site Health Monitor & HTTP Request Manager",
+	Long: `Sitemon is a CLI tool for HTTP request management and website health monitoring.
+It works great for monitoring portfolios, personal sites, and any web services.
 
 Features:
   - Health checks for URLs with status monitoring
@@ -29,12 +30,12 @@ Features:
   - JSON report generation
 
 Usage:
-  portman check --url https://example.com
-  portman check --url https://example.com --watch --interval 30s
-  portman request --url https://example.com --workers 100 --rps 500
-  portman report --output report.json
+  sitemon check --url https://example.com
+  sitemon check --url https://example.com --watch --interval 30s
+  sitemon request --url https://example.com --workers 100 --rps 500
+  sitemon report --output report.json
 
-For more information, visit: https://github.com/mralaminahamed/portman`,
+For more information, visit: https://github.com/mralaminahamed/sitemon`,
 	SilenceUsage: true,
 }
 
@@ -53,8 +54,8 @@ func init() {
 
 		cfg := config.GetConfig()
 		logger.InitLogger(logger.LoggerOptions{
-			Level:    cfg.LogLevel,
-			LogFile:  cfg.LogFile,
+			Level:   cfg.LogLevel,
+			LogFile: cfg.LogFile,
 		})
 	})
 

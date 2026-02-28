@@ -5,7 +5,7 @@ Check the health status of one or more URLs.
 ## Usage
 
 ```bash
-portman check [url...]
+sitemon check [url...]
 ```
 
 ## Options
@@ -31,44 +31,44 @@ portman check [url...]
 ### Basic check
 
 ```bash
-portman check -u https://example.com
+sitemon check -u https://example.com
 ```
 
 ### Check multiple URLs
 
 ```bash
-portman check -u https://example.com -u https://google.com
-portman check https://example.com https://google.com
+sitemon check -u https://example.com -u https://google.com
+sitemon check https://example.com https://google.com
 ```
 
 ### Watch mode
 
 ```bash
-portman check -u https://example.com --watch --interval 30s
+sitemon check -u https://example.com --watch --interval 30s
 ```
 
 ### With webhook alerts
 
 ```bash
-portman check -u https://example.com --watch --webhook https://hooks.slack.com/services/xxx
+sitemon check -u https://example.com --watch --webhook https://hooks.slack.com/services/xxx
 ```
 
 ### Content validation
 
 ```bash
-portman check -u https://example.com --contains "Welcome" --not-contains "Error"
+sitemon check -u https://example.com --contains "Welcome" --not-contains "Error"
 ```
 
 ### Check SSL certificate
 
 ```bash
-portman check -u https://example.com --check-ssl
+sitemon check -u https://example.com --check-ssl
 ```
 
 ### Save to history
 
 ```bash
-portman check -u https://example.com --save
+sitemon check -u https://example.com --save
 ```
 
 ## Output

@@ -5,7 +5,7 @@ Send high-volume HTTP requests for load testing.
 ## Usage
 
 ```bash
-portman request [url]
+sitemon request [url]
 ```
 
 ## Options
@@ -38,37 +38,37 @@ portman request [url]
 ### Basic GET request
 
 ```bash
-portman request -u https://example.com
+sitemon request -u https://example.com
 ```
 
 ### High RPS load test
 
 ```bash
-portman request -u https://example.com -w 50 -r 1000 -n 50000
+sitemon request -u https://example.com -w 50 -r 1000 -n 50000
 ```
 
 ### HEAD method (fastest)
 
 ```bash
-portman request -u https://example.com -m HEAD -w 100 -r 5000 -n 100000
+sitemon request -u https://example.com -m HEAD -w 100 -r 5000 -n 100000
 ```
 
 ### POST request
 
 ```bash
-portman request -u https://api.example.com/submit -m POST -w 20 -r 200 -n 5000
+sitemon request -u https://api.example.com/submit -m POST -w 20 -r 200 -n 5000
 ```
 
 ### DELETE request
 
 ```bash
-portman request -u https://api.example.com/resource/123 -m DELETE -w 10 -r 100 -n 1000
+sitemon request -u https://api.example.com/resource/123 -m DELETE -w 10 -r 100 -n 1000
 ```
 
 ### Save stats to file
 
 ```bash
-portman request -u https://example.com -s stats.json
+sitemon request -u https://example.com -s stats.json
 ```
 
 ## Output

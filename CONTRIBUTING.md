@@ -1,6 +1,6 @@
-# Contributing to Portman
+# Contributing to Sitemon
 
-Thank you for your interest in contributing to Portman!
+Thank you for your interest in contributing to Sitemon!
 
 ## How to Contribute
 
@@ -37,14 +37,14 @@ Thank you for your interest in contributing to Portman!
 
 ```bash
 # Clone the repository
-git clone https://github.com/mralaminahamed/portman.git
-cd portman
+git clone https://github.com/mralaminahamed/sitemon.git
+cd sitemon
 
 # Install dependencies
 go mod tidy
 
 # Build
-go build -o portman .
+go build -o sitemon .
 
 # Run tests (if any)
 go test ./...
@@ -74,13 +74,13 @@ Before submitting a PR:
 
 ```bash
 # Build the project
-go build -o portman .
+go build -o sitemon .
 
 # Test the commands
-./portman check --url https://example.com
-./portman request -u https://example.com -n 10
+./sitemon check --url https://example.com
+./sitemon request -u https://example.com -n 10
 ```
 
 ## License
 
-By contributing to Portman, you agree that your contributions will be licensed under the MIT License.
+By contributing to Sitemon, you agree that your contributions will be licensed under the MIT License.

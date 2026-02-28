@@ -38,7 +38,7 @@ type Database struct {
 func NewDatabase(path string) (*Database, error) {
 	if path == "" {
 		home, _ := os.UserHomeDir()
-		path = filepath.Join(home, ".portman", "history.db")
+		path = filepath.Join(home, ".sitemon", "history.db")
 	}
 
 	dir := filepath.Dir(path)
@@ -225,11 +225,11 @@ func (d *Database) GetStats(url string) (map[string]interface{}, error) {
 
 	return map[string]interface{}{
 		"url":               url,
-		"total_checks":     totalChecks,
-		"successful":       successful,
-		"failed":           failed,
+		"total_checks":      totalChecks,
+		"successful":        successful,
+		"failed":            failed,
 		"uptime_percentage": uptime,
-		"avg_response_ms":  avgResponseTime,
+		"avg_response_ms":   avgResponseTime,
 	}, nil
 }
 
@@ -246,8 +246,8 @@ func (d *Database) ExportJSON() ([]byte, error) {
 
 	data := map[string]interface{}{
 		"exported_at": time.Now().Format(time.RFC3339),
-		"checks":     checks,
-		"requests":   requests,
+		"checks":      checks,
+		"requests":    requests,
 	}
 
 	return json.MarshalIndent(data, "", "  ")

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/ssl"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/ssl"
 )
 
 var sslCmd = &cobra.Command{

@@ -6,8 +6,8 @@ Portman can be configured via config file, environment variables, or `.env` file
 
 Create `config.yaml` in one of these locations:
 - Current directory
-- `$HOME/.portman/`
-- `$HOME/.config/portman/`
+- `$HOME/.sitemon/`
+- `$HOME/.config/sitemon/`
 
 ### Example Config
 
@@ -43,7 +43,7 @@ headers:
 | `PORTMAN_OUTPUT_FORMAT` | text | Output format (text, json) |
 | `PORTMAN_METHOD` | GET | Default HTTP method |
 | `PORTMAN_TLS_INSECURE` | false | Skip TLS verification |
-| `PORTMAN_DB_PATH` | ~/.portman/history.db | History database path |
+| `PORTMAN_DB_PATH` | ~/.sitemon/history.db | History database path |
 | `PORTMAN_WEBHOOK_URL` | - | Webhook URL for alerts |
 | `PORTMAN_MAX_LATENCY` | - | Max latency threshold |
 
@@ -105,5 +105,5 @@ export PORTMAN_TLS_INSECURE=true
 ### Log to File
 
 ```bash
-portman check --url https://example.com --log-file /tmp/portman.log
+sitemon check --url https://example.com --log-file /tmp/sitemon.log
 ```

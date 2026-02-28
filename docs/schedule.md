@@ -5,7 +5,7 @@ Run health checks on a cron schedule.
 ## Usage
 
 ```bash
-portman schedule --cron "*/5 * * * *" --url https://example.com
+sitemon schedule --cron "*/5 * * * *" --url https://example.com
 ```
 
 ## Options
@@ -35,25 +35,25 @@ portman schedule --cron "*/5 * * * *" --url https://example.com
 ### Every 5 minutes
 
 ```bash
-portman schedule --cron "*/5 * * * *" -u https://example.com
+sitemon schedule --cron "*/5 * * * *" -u https://example.com
 ```
 
 ### Every hour with webhook
 
 ```bash
-portman schedule --cron "0 * * * *" -u https://example.com --webhook https://hooks.slack.com/xxx
+sitemon schedule --cron "0 * * * *" -u https://example.com --webhook https://hooks.slack.com/xxx
 ```
 
 ### Multiple URLs
 
 ```bash
-portman schedule --cron "*/15 * * * *" -u https://example.com -u https://api.example.com
+sitemon schedule --cron "*/15 * * * *" -u https://example.com -u https://api.example.com
 ```
 
 ### Daily at 9 AM
 
 ```bash
-portman schedule --cron "0 9 * * *" -u https://example.com
+sitemon schedule --cron "0 9 * * *" -u https://example.com
 ```
 
 ## Output

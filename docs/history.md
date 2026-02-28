@@ -5,14 +5,14 @@ View health check history from SQLite database.
 ## Usage
 
 ```bash
-portman history
+sitemon history
 ```
 
 ## Options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--db` | - | ~/.portman/history.db | Path to history database |
+| `--db` | - | ~/.sitemon/history.db | Path to history database |
 | `--limit` | `-n` | 50 | Number of records to show |
 | `--from` | - | - | Start date (YYYY-MM-DD) |
 | `--to` | - | - | End date (YYYY-MM-DD) |
@@ -25,31 +25,31 @@ portman history
 ### View recent history
 
 ```bash
-portman history
+sitemon history
 ```
 
 ### Show last 100 records
 
 ```bash
-portman history --limit 100
+sitemon history --limit 100
 ```
 
 ### Show statistics for URL
 
 ```bash
-portman history --stats https://example.com
+sitemon history --stats https://example.com
 ```
 
 ### Export to JSON
 
 ```bash
-portman history --export -o history.json
+sitemon history --export -o history.json
 ```
 
 ### Filter by date
 
 ```bash
-portman history --from 2026-01-01 --to 2026-02-27
+sitemon history --from 2026-01-01 --to 2026-02-27
 ```
 
 ## Output

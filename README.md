@@ -1,10 +1,10 @@
-# Portman
+# Sitemon
 
-Portfolio HTTP Request Manager & Health Check Tool
+Site Health Monitor & HTTP Request Manager
 
 ## Overview
 
-Portman is a Go-based CLI tool for HTTP request management and portfolio site health monitoring. It provides health checks, continuous monitoring, high-volume request testing, SSL certificate monitoring, scheduled checks, and comprehensive reporting.
+Sitemon is a Go-based CLI tool for HTTP request management and website health monitoring. It works great for monitoring portfolios, personal sites, and any web services.
 
 ## Features
 
@@ -23,14 +23,14 @@ Portman is a Go-based CLI tool for HTTP request management and portfolio site he
 
 ```bash
 # Clone the repository
-git clone https://github.com/mralaminahamed/portman.git
-cd portman
+git clone https://github.com/mralaminahamed/sitemon.git
+cd sitemon
 
 # Install dependencies
 go mod tidy
 
 # Build the binary
-go build -o portman .
+go build -o sitemon .
 
 # Or install globally
 go install
@@ -41,31 +41,31 @@ go install
 ### Health Check
 
 ```bash
-portman check --url https://example.com
+sitemon check --url https://example.com
 ```
 
 ### SSL Certificate Check
 
 ```bash
-portman ssl --url https://example.com
+sitemon ssl --url https://example.com
 ```
 
 ### Watch Mode with Alerts
 
 ```bash
-portman check --url https://example.com --watch --webhook https://hooks.slack.com/xxx
+sitemon check --url https://example.com --watch --webhook https://hooks.slack.com/xxx
 ```
 
 ### Load Testing
 
 ```bash
-portman request --url https://example.com --workers 100 --rps 500 --count 10000
+sitemon request --url https://example.com --workers 100 --rps 500 --count 10000
 ```
 
 ### Dashboard
 
 ```bash
-portman dashboard --url https://example.com
+sitemon dashboard --url https://example.com
 ```
 
 ## Commands

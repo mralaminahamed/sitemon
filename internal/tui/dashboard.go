@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mralaminahamed/portman/internal/http"
-	"github.com/mralaminahamed/portman/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/monitor"
 )
 
 var (

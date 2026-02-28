@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mralaminahamed/portman/internal/http"
-	"github.com/mralaminahamed/portman/internal/logger"
+	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/logger"
 )
 
 type HealthResult struct {
@@ -100,7 +100,7 @@ func (h *HealthChecker) Watch(url string, interval time.Duration, output string)
 	for {
 		result, err := h.Check(url)
 		if err != nil {
-			fmt.Printf("[%s] %s - ERROR: %v\n", 
+			fmt.Printf("[%s] %s - ERROR: %v\n",
 				result.Timestamp.Format("15:04:05"), url, err)
 		} else {
 			statusIcon := "✓"
@@ -207,13 +207,13 @@ func (h *HealthChecker) PrintSummary() {
 }
 
 type LatencyStats struct {
-	Min    time.Duration
-	Max    time.Duration
-	Avg    time.Duration
-	P50    time.Duration
-	P90    time.Duration
-	P95    time.Duration
-	P99    time.Duration
+	Min time.Duration
+	Max time.Duration
+	Avg time.Duration
+	P50 time.Duration
+	P90 time.Duration
+	P95 time.Duration
+	P99 time.Duration
 }
 
 func CalculateLatencyStats(latencies []time.Duration) LatencyStats {
@@ -241,12 +241,12 @@ func CalculateLatencyStats(latencies []time.Duration) LatencyStats {
 	}
 
 	return LatencyStats{
-		Min:  sorted[0],
-		Max:  sorted[len(sorted)-1],
-		Avg:  total / time.Duration(len(sorted)),
-		P50:  getPercentile(0.50),
-		P90:  getPercentile(0.90),
-		P95:  getPercentile(0.95),
-		P99:  getPercentile(0.99),
+		Min: sorted[0],
+		Max: sorted[len(sorted)-1],
+		Avg: total / time.Duration(len(sorted)),
+		P50: getPercentile(0.50),
+		P90: getPercentile(0.90),
+		P95: getPercentile(0.95),
+		P99: getPercentile(0.99),
 	}
 }

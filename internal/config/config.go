@@ -10,18 +10,18 @@ import (
 )
 
 type Config struct {
-	URL            string            `mapstructure:"url"`
-	Workers        int               `mapstructure:"workers"`
-	RPS            int               `mapstructure:"rps"`
-	Timeout        int               `mapstructure:"timeout"`
-	LogLevel       string            `mapstructure:"log_level"`
-	LogFile        string            `mapstructure:"log_file"`
-	OutputFormat   string            `mapstructure:"output_format"`
-	Headers        map[string]string `mapstructure:"headers"`
-	Method         string            `mapstructure:"method"`
-	MaxRetries     int               `mapstructure:"max_retries"`
-	RetryWaitMs    int               `mapstructure:"retry_wait_ms"`
-	TLSInsecure    bool              `mapstructure:"tls_insecure"`
+	URL          string            `mapstructure:"url"`
+	Workers      int               `mapstructure:"workers"`
+	RPS          int               `mapstructure:"rps"`
+	Timeout      int               `mapstructure:"timeout"`
+	LogLevel     string            `mapstructure:"log_level"`
+	LogFile      string            `mapstructure:"log_file"`
+	OutputFormat string            `mapstructure:"output_format"`
+	Headers      map[string]string `mapstructure:"headers"`
+	Method       string            `mapstructure:"method"`
+	MaxRetries   int               `mapstructure:"max_retries"`
+	RetryWaitMs  int               `mapstructure:"retry_wait_ms"`
+	TLSInsecure  bool              `mapstructure:"tls_insecure"`
 }
 
 var cfg *Config
@@ -32,8 +32,8 @@ func InitConfig() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.portman")
-	viper.AddConfigPath("$HOME/.config/portman")
+	viper.AddConfigPath("$HOME/.sitemon")
+	viper.AddConfigPath("$HOME/.config/sitemon")
 
 	viper.SetDefault("workers", 10)
 	viper.SetDefault("rps", 100)
@@ -46,15 +46,15 @@ func InitConfig() error {
 	viper.SetDefault("retry_wait_ms", 500)
 	viper.SetDefault("tls_insecure", false)
 
-	viper.BindEnv("url", "PORTMAN_URL")
-	viper.BindEnv("workers", "PORTMAN_WORKERS")
-	viper.BindEnv("rps", "PORTMAN_RPS")
-	viper.BindEnv("timeout", "PORTMAN_TIMEOUT")
-	viper.BindEnv("log_level", "PORTMAN_LOG_LEVEL")
-	viper.BindEnv("log_file", "PORTMAN_LOG_FILE")
-	viper.BindEnv("output_format", "PORTMAN_OUTPUT_FORMAT")
-	viper.BindEnv("method", "PORTMAN_METHOD")
-	viper.BindEnv("tls_insecure", "PORTMAN_TLS_INSECURE")
+	viper.BindEnv("url", "SITEMON_URL", "PORTMAN_URL")
+	viper.BindEnv("workers", "SITEMON_WORKERS", "PORTMAN_WORKERS")
+	viper.BindEnv("rps", "SITEMON_RPS", "PORTMAN_RPS")
+	viper.BindEnv("timeout", "SITEMON_TIMEOUT", "PORTMAN_TIMEOUT")
+	viper.BindEnv("log_level", "SITEMON_LOG_LEVEL", "PORTMAN_LOG_LEVEL")
+	viper.BindEnv("log_file", "SITEMON_LOG_FILE", "PORTMAN_LOG_FILE")
+	viper.BindEnv("output_format", "SITEMON_OUTPUT_FORMAT", "PORTMAN_OUTPUT_FORMAT")
+	viper.BindEnv("method", "SITEMON_METHOD", "PORTMAN_METHOD")
+	viper.BindEnv("tls_insecure", "SITEMON_TLS_INSECURE", "PORTMAN_TLS_INSECURE")
 
 	if err := viper.ReadInConfig(); err != nil {
 		var pathErr *os.PathError

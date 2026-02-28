@@ -5,7 +5,7 @@ Check SSL certificate details for URLs.
 ## Usage
 
 ```bash
-portman ssl [url...]
+sitemon ssl [url...]
 ```
 
 ## Options
@@ -20,13 +20,13 @@ portman ssl [url...]
 ### Check single URL
 
 ```bash
-portman ssl -u https://example.com
+sitemon ssl -u https://example.com
 ```
 
 ### Check multiple URLs
 
 ```bash
-portman ssl -u https://example.com -u https://google.com
+sitemon ssl -u https://example.com -u https://google.com
 ```
 
 ## Output

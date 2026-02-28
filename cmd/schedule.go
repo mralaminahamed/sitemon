@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/scheduler"
+	"github.com/mralaminahamed/sitemon/internal/webhook"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/http"
-	"github.com/mralaminahamed/portman/internal/monitor"
-	"github.com/mralaminahamed/portman/internal/scheduler"
-	"github.com/mralaminahamed/portman/internal/webhook"
 )
 
 var scheduleCmd = &cobra.Command{
@@ -19,8 +19,8 @@ var scheduleCmd = &cobra.Command{
 	Short: "Run scheduled health checks",
 	Long: `Run health checks on a cron schedule.
 Examples:
-  portman schedule --cron "*/5 * * * *" --url https://example.com
-  portman schedule --cron "0 * * * *" --url https://example.com --webhook https://hooks.slack.com/...`,
+  sitemon schedule --cron "*/5 * * * *" --url https://example.com
+  sitemon schedule --cron "0 * * * *" --url https://example.com --webhook https://hooks.slack.com/...`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if cronExpr == "" {
 			return fmt.Errorf("cron expression is required (--cron)")
@@ -107,10 +107,10 @@ Examples:
 }
 
 var (
-	cronExpr         string
-	scheduleURLs     []string
-	scheduleTimeout  time.Duration
-	scheduleWebhook  string
+	cronExpr        string
+	scheduleURLs    []string
+	scheduleTimeout time.Duration
+	scheduleWebhook string
 )
 
 func init() {

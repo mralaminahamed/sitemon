@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/history"
+	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/ssl"
+	"github.com/mralaminahamed/sitemon/internal/validation"
+	"github.com/mralaminahamed/sitemon/internal/webhook"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/history"
-	"github.com/mralaminahamed/portman/internal/http"
-	"github.com/mralaminahamed/portman/internal/monitor"
-	"github.com/mralaminahamed/portman/internal/ssl"
-	"github.com/mralaminahamed/portman/internal/validation"
-	"github.com/mralaminahamed/portman/internal/webhook"
 )
 
 var checkCmd = &cobra.Command{
@@ -76,12 +76,12 @@ Supports multiple URLs for batch checking.`,
 				defer db.Close()
 				for _, r := range results {
 					db.SaveCheck(history.CheckRecord{
-						URL:         r.URL,
-						Status:      r.Status,
-						StatusCode:  r.StatusCode,
+						URL:          r.URL,
+						Status:       r.Status,
+						StatusCode:   r.StatusCode,
 						ResponseTime: r.ResponseTime.Milliseconds(),
-						Timestamp:   r.Timestamp,
-						Error:       r.Error,
+						Timestamp:    r.Timestamp,
+						Error:        r.Error,
 					})
 				}
 			}
@@ -223,12 +223,12 @@ func runWatchMode(urls []string, client *http.Client, healthChecker *monitor.Hea
 					defer db.Close()
 					for _, result := range healthChecker.GetResults() {
 						db.SaveCheck(history.CheckRecord{
-							URL:         result.URL,
-							Status:      result.Status,
-							StatusCode:  result.StatusCode,
+							URL:          result.URL,
+							Status:       result.Status,
+							StatusCode:   result.StatusCode,
 							ResponseTime: result.ResponseTime.Milliseconds(),
-							Timestamp:   result.Timestamp,
-							Error:       result.Error,
+							Timestamp:    result.Timestamp,
+							Error:        result.Error,
 						})
 					}
 				}

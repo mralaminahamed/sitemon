@@ -10,32 +10,32 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/spf13/cobra"
+	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/logger"
 	"github.com/schollz/progressbar/v3"
-	"github.com/mralaminahamed/portman/internal/http"
-	"github.com/mralaminahamed/portman/internal/logger"
+	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
 
 type RequestStats struct {
-	TotalRequests   int           `json:"total_requests"`
-	Successful      int           `json:"successful"`
-	Failed          int           `json:"failed"`
-	Duration        time.Duration `json:"duration"`
-	RequestsPerSec  float64       `json:"requests_per_sec"`
-	SuccessRate     float64       `json:"success_rate"`
-	AvgLatency      time.Duration `json:"avg_latency_ms"`
-	MinLatency      time.Duration `json:"min_latency_ms"`
-	MaxLatency      time.Duration `json:"max_latency_ms"`
+	TotalRequests  int           `json:"total_requests"`
+	Successful     int           `json:"successful"`
+	Failed         int           `json:"failed"`
+	Duration       time.Duration `json:"duration"`
+	RequestsPerSec float64       `json:"requests_per_sec"`
+	SuccessRate    float64       `json:"success_rate"`
+	AvgLatency     time.Duration `json:"avg_latency_ms"`
+	MinLatency     time.Duration `json:"min_latency_ms"`
+	MaxLatency     time.Duration `json:"max_latency_ms"`
 	P50Latency     time.Duration `json:"p50_latency_ms"`
 	P90Latency     time.Duration `json:"p90_latency_ms"`
 	P95Latency     time.Duration `json:"p95_latency_ms"`
 	P99Latency     time.Duration `json:"p99_latency_ms"`
-	TargetURL       string        `json:"target_url"`
-	Method          string        `json:"method"`
-	Workers         int           `json:"workers"`
-	RPS             int           `json:"rps_limit"`
+	TargetURL      string        `json:"target_url"`
+	Method         string        `json:"method"`
+	Workers        int           `json:"workers"`
+	RPS            int           `json:"rps_limit"`
 }
 
 var requestCmd = &cobra.Command{
@@ -155,23 +155,23 @@ Reports detailed latency statistics including p50, p90, p95, and p99 percentiles
 		avgLatencyMs := atomic.LoadInt64(&totalLatency) / actualTotal
 
 		stats := RequestStats{
-			TotalRequests:   int(actualTotal),
-			Successful:      int(atomic.LoadInt64(&successCount)),
-			Failed:          int(atomic.LoadInt64(&failureCount)),
-			Duration:        elapsed,
-			RequestsPerSec:  float64(actualTotal) / elapsed.Seconds(),
-			SuccessRate:     float64(atomic.LoadInt64(&successCount)) / float64(actualTotal) * 100,
-			AvgLatency:      time.Duration(avgLatencyMs) * time.Millisecond,
-			MinLatency:      latencies[0],
-			MaxLatency:      latencies[len(latencies)-1],
+			TotalRequests:  int(actualTotal),
+			Successful:     int(atomic.LoadInt64(&successCount)),
+			Failed:         int(atomic.LoadInt64(&failureCount)),
+			Duration:       elapsed,
+			RequestsPerSec: float64(actualTotal) / elapsed.Seconds(),
+			SuccessRate:    float64(atomic.LoadInt64(&successCount)) / float64(actualTotal) * 100,
+			AvgLatency:     time.Duration(avgLatencyMs) * time.Millisecond,
+			MinLatency:     latencies[0],
+			MaxLatency:     latencies[len(latencies)-1],
 			P50Latency:     calcPercentile(0.50),
 			P90Latency:     calcPercentile(0.90),
 			P95Latency:     calcPercentile(0.95),
 			P99Latency:     calcPercentile(0.99),
-			TargetURL:       url,
-			Method:          requestMethod,
-			Workers:         workers,
-			RPS:             rps,
+			TargetURL:      url,
+			Method:         requestMethod,
+			Workers:        workers,
+			RPS:            rps,
 		}
 
 		if jsonOutput {
@@ -220,14 +220,14 @@ Reports detailed latency statistics including p50, p90, p95, and p99 percentiles
 }
 
 var (
-	requestURL      string
-	workers         int
-	rps             int
-	totalRequests   int
-	requestTimeout  time.Duration
-	requestMethod   string
-	requestJsonOutput      bool
-	statsOutput     string
+	requestURL        string
+	workers           int
+	rps               int
+	totalRequests     int
+	requestTimeout    time.Duration
+	requestMethod     string
+	requestJsonOutput bool
+	statsOutput       string
 )
 
 func init() {

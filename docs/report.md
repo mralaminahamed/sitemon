@@ -5,7 +5,7 @@ Generate a comprehensive JSON report.
 ## Usage
 
 ```bash
-portman report
+sitemon report
 ```
 
 ## Options
@@ -22,27 +22,27 @@ portman report
 ### Output to file
 
 ```bash
-portman report -o report.json
+sitemon report -o report.json
 ```
 
 ### Generate from check results
 
 ```bash
-portman check -u https://example.com -o checks.json
-portman report --checks checks.json -o report.json
+sitemon check -u https://example.com -o checks.json
+sitemon report --checks checks.json -o report.json
 ```
 
 ### Generate from request stats
 
 ```bash
-portman request -u https://example.com -s stats.json
-portman report --stats stats.json -o report.json
+sitemon request -u https://example.com -s stats.json
+sitemon report --stats stats.json -o report.json
 ```
 
 ### Combined report
 
 ```bash
-portman report --checks checks.json --stats stats.json -o combined.json
+sitemon report --checks checks.json --stats stats.json -o combined.json
 ```
 
 ## Output Format

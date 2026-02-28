@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mralaminahamed/portman/cmd"
+	"github.com/mralaminahamed/sitemon/cmd"
 )
 
 func main() {

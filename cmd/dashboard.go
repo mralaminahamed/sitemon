@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/tui"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/tui"
 )
 
 var dashboardCmd = &cobra.Command{
@@ -15,9 +15,9 @@ var dashboardCmd = &cobra.Command{
 Shows live status of all monitored URLs with automatic refresh.
 
 Examples:
-  portman dashboard -u https://example.com
-  portman dashboard -u https://example.com -u https://google.com --interval 5s
-  portman dashboard -u https://example.com --timeout 30s`,
+  sitemon dashboard -u https://example.com
+  sitemon dashboard -u https://example.com -u https://google.com --interval 5s
+  sitemon dashboard -u https://example.com --timeout 30s`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		urls := dashboardURLs
 		if len(args) > 0 {
@@ -40,9 +40,9 @@ Examples:
 }
 
 var (
-	dashboardURLs       []string
-	dashboardInterval   time.Duration
-	dashboardTimeout    time.Duration
+	dashboardURLs     []string
+	dashboardInterval time.Duration
+	dashboardTimeout  time.Duration
 )
 
 func init() {

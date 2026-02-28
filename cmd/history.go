@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/history"
 	"github.com/spf13/cobra"
-	"github.com/mralaminahamed/portman/internal/history"
 )
 
 var historyCmd = &cobra.Command{
@@ -89,13 +89,13 @@ Shows past check results with statistics.`,
 }
 
 var (
-	historyDBPath  string
-	historyLimit   int
-	historyFrom    string
-	historyTo      string
-	historyOutput  string
-	urlStats       string
-	exportHistory  bool
+	historyDBPath string
+	historyLimit  int
+	historyFrom   string
+	historyTo     string
+	historyOutput string
+	urlStats      string
+	exportHistory bool
 )
 
 func init() {

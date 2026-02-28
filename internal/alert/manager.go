@@ -3,8 +3,8 @@ package alert
 import (
 	"time"
 
-	"github.com/mralaminahamed/portman/internal/monitor"
-	"github.com/mralaminahamed/portman/internal/webhook"
+	"github.com/mralaminahamed/sitemon/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/webhook"
 )
 
 type ThresholdConfig struct {
@@ -15,9 +15,9 @@ type ThresholdConfig struct {
 }
 
 type AlertManager struct {
-	config       *ThresholdConfig
-	lastStatus   map[string]string
-	notifier     *webhook.Notifier
+	config     *ThresholdConfig
+	lastStatus map[string]string
+	notifier   *webhook.Notifier
 }
 
 func NewAlertManager(config *ThresholdConfig) *AlertManager {

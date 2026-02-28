@@ -5,7 +5,7 @@ Run interactive TUI dashboard for real-time monitoring.
 ## Usage
 
 ```bash
-portman dashboard --url https://example.com
+sitemon dashboard --url https://example.com
 ```
 
 ## Options
@@ -21,19 +21,19 @@ portman dashboard --url https://example.com
 ### Single URL
 
 ```bash
-portman dashboard -u https://example.com
+sitemon dashboard -u https://example.com
 ```
 
 ### Multiple URLs
 
 ```bash
-portman dashboard -u https://example.com -u https://google.com
+sitemon dashboard -u https://example.com -u https://google.com
 ```
 
 ### Custom interval
 
 ```bash
-portman dashboard -u https://example.com --interval 10s
+sitemon dashboard -u https://example.com --interval 10s
 ```
 
 ## Output

@@ -19,4 +19,4 @@ Welcome to the Portman documentation.
 ## Quick Links
 
 - [Installation](../README.md)
-- [GitHub Repository](https://github.com/mralaminahamed/portman)
+- [GitHub Repository](https://github.com/mralaminahamed/sitemon)
