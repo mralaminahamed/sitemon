@@ -18,7 +18,10 @@ Sitemon is a Go-based CLI tool for HTTP request management and website health mo
 - **Detailed Latency Stats** - P50, P90, P95, P99 percentiles
 - **History Database** - SQLite storage for historical data
 - **Content Validation** - Verify response contains specific text
-- **Cloudflare Bypass** - Bypass Cloudflare bot protection with realistic browser headers
+- **Cloudflare Bypass** - Bypass Cloudflare bot protection
+- **Duration-based Testing** - Run load tests for specific duration
+- **Ramp-up Support** - Gradually increase RPS during test
+- **Multiple Output Formats** - JSON, CSV, Prometheus, JUnit XML
 
 ## Installation
 
@@ -63,6 +66,12 @@ sitemon check --url https://example.com --watch --webhook https://hooks.slack.co
 sitemon request --url https://example.com --workers 100 --rps 500 --count 10000
 ```
 
+### Duration-based Load Testing
+
+```bash
+sitemon request --url https://example.com --workers 50 --rps 500 --duration 5m
+```
+
 ### Dashboard
 
 ```bash
@@ -80,6 +89,44 @@ sitemon dashboard --url https://example.com
 | [history](docs/history.md) | View check history from SQLite |
 | [request](docs/request.md) | High-volume load testing |
 | [report](docs/report.md) | Generate JSON reports |
+
+## Load Testing Examples
+
+### Basic
+
+```bash
+sitemon request -u https://example.com
+```
+
+### With Custom Headers
+
+```bash
+sitemon request -u https://api.example.com -H "Authorization: Bearer token"
+```
+
+### Duration Mode
+
+```bash
+sitemon request -u https://example.com -w 50 -r 500 --duration 5m
+```
+
+### Flood Testing (1M requests)
+
+```bash
+sitemon request -u https://example.com -w 200 -r 2000 -n 1000000
+```
+
+### With Cloudflare Bypass
+
+```bash
+sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
+```
+
+### Prometheus Metrics
+
+```bash
+sitemon request -u https://example.com -n 10000 --prometheus
+```
 
 ## Documentation
 
