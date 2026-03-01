@@ -9,45 +9,27 @@ import (
 
 	"github.com/mralaminahamed/sitemon/internal/http"
 	"github.com/mralaminahamed/sitemon/internal/logger"
+	"github.com/mralaminahamed/sitemon/internal/models"
 )
-
-type HealthResult struct {
-	URL          string        `json:"url"`
-	Status       string        `json:"status"`
-	StatusCode   int           `json:"status_code"`
-	ResponseTime time.Duration `json:"response_time_ms"`
-	Timestamp    time.Time     `json:"timestamp"`
-	Error        string        `json:"error,omitempty"`
-}
-
-type HealthStats struct {
-	TotalChecks     int           `json:"total_checks"`
-	Successful      int           `json:"successful"`
-	Failed          int           `json:"failed"`
-	UptimePercent   float64       `json:"uptime_percentage"`
-	AvgResponseTime time.Duration `json:"avg_response_time_ms"`
-	MinResponseTime time.Duration `json:"min_response_time_ms"`
-	MaxResponseTime time.Duration `json:"max_response_time_ms"`
-}
 
 type HealthChecker struct {
 	client  *http.Client
-	results []HealthResult
+	results []models.HealthResult
 }
 
 func NewHealthChecker(client *http.Client) *HealthChecker {
 	return &HealthChecker{
 		client:  client,
-		results: make([]HealthResult, 0),
+		results: make([]models.HealthResult, 0),
 	}
 }
 
-func (h *HealthChecker) Check(url string) (*HealthResult, error) {
+func (h *HealthChecker) Check(url string) (*models.HealthResult, error) {
 	start := time.Now()
 	result := h.client.SendGet(url)
 	elapsed := time.Since(start)
 
-	healthResult := HealthResult{
+	healthResult := models.HealthResult{
 		URL:          url,
 		ResponseTime: elapsed,
 		Timestamp:    time.Now(),
@@ -82,8 +64,8 @@ func (h *HealthChecker) Check(url string) (*HealthResult, error) {
 	return &healthResult, nil
 }
 
-func (h *HealthChecker) CheckMultiple(urls []string) []HealthResult {
-	results := make([]HealthResult, 0, len(urls))
+func (h *HealthChecker) CheckMultiple(urls []string) []models.HealthResult {
+	results := make([]models.HealthResult, 0, len(urls))
 	for _, url := range urls {
 		result, _ := h.Check(url)
 		results = append(results, *result)
@@ -125,9 +107,9 @@ func (h *HealthChecker) Watch(url string, interval time.Duration, output string)
 	}
 }
 
-func (h *HealthChecker) GetStats() *HealthStats {
+func (h *HealthChecker) GetStats() *models.HealthStats {
 	if len(h.results) == 0 {
-		return &HealthStats{}
+		return &models.HealthStats{}
 	}
 
 	var totalLatency int64
@@ -153,7 +135,7 @@ func (h *HealthChecker) GetStats() *HealthStats {
 
 	avgLatencyMs := totalLatency / int64(len(h.results))
 
-	return &HealthStats{
+	return &models.HealthStats{
 		TotalChecks:     len(h.results),
 		Successful:      successful,
 		Failed:          failed,
@@ -164,11 +146,11 @@ func (h *HealthChecker) GetStats() *HealthStats {
 	}
 }
 
-func (h *HealthChecker) GetResults() []HealthResult {
+func (h *HealthChecker) GetResults() []models.HealthResult {
 	return h.results
 }
 
-func (h *HealthChecker) GetLatest() *HealthResult {
+func (h *HealthChecker) GetLatest() *models.HealthResult {
 	if len(h.results) == 0 {
 		return nil
 	}

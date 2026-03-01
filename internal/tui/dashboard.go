@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mralaminahamed/sitemon/internal/http"
+	"github.com/mralaminahamed/sitemon/internal/models"
 	"github.com/mralaminahamed/sitemon/internal/monitor"
 )
 
@@ -43,7 +44,7 @@ var (
 
 type Dashboard struct {
 	urls       []string
-	results    map[string]*monitor.HealthResult
+	results    map[string]*models.HealthResult
 	checking   map[string]bool
 	resultsMu  sync.RWMutex
 	interval   time.Duration
@@ -69,7 +70,7 @@ type DashboardStats struct {
 func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) *Dashboard {
 	return &Dashboard{
 		urls:       urls,
-		results:    make(map[string]*monitor.HealthResult),
+		results:    make(map[string]*models.HealthResult),
 		checking:   make(map[string]bool),
 		interval:   interval,
 		client:     http.NewClient(timeout),
@@ -120,7 +121,7 @@ func (d *Dashboard) monitorLoop(healthChecker *monitor.HealthChecker) {
 func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 	var wg sync.WaitGroup
 
-	currentResults := make(map[string]*monitor.HealthResult)
+	currentResults := make(map[string]*models.HealthResult)
 	var totalLatency int64
 	var minLatency int64 = -1
 	var maxLatency int64
@@ -371,7 +372,7 @@ func (d *Dashboard) renderStatsBar() string {
 	return row1 + row2
 }
 
-func (d *Dashboard) GetResults() map[string]*monitor.HealthResult {
+func (d *Dashboard) GetResults() map[string]*models.HealthResult {
 	d.resultsMu.RLock()
 	defer d.resultsMu.RUnlock()
 	return d.results
