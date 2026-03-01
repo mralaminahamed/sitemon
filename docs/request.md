@@ -102,6 +102,78 @@ sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
 sitemon request -u https://example.com -w 200 -r 2000 -n 1000000 -s million_stats.json
 ```
 
+## Flood Testing (High RPS)
+
+Test your server's ability to handle high request volumes.
+
+### Aggressive Load Tests
+
+| RPS | Workers | Requests | Use Case |
+|-----|---------|----------|----------|
+| 1,000 | 50 | 10,000 | Moderate traffic spike |
+| 2,000 | 100 | 50,000 | Heavy load test |
+| 5,000 | 200 | 100,000 | Stress testing |
+| 10,000 | 500 | 500,000 | DDoS simulation |
+| 20,000 | 1000 | 1,000,000 | Extreme stress test |
+
+### Flood Testing Examples
+
+```bash
+# 1K RPS flood test
+sitemon request -u https://example.com -w 50 -r 1000 -n 10000
+
+# 5K RPS flood test
+sitemon request -u https://example.com -w 200 -r 5000 -n 50000
+
+# 10K RPS stress test
+sitemon request -u https://example.com -w 500 -r 10000 -n 100000
+
+# 20K RPS extreme test (1M requests)
+sitemon request -u https://example.com -w 1000 -r 20000 -n 1000000
+
+# 10K RPS with HEAD (fastest possible)
+sitemon request -u https://example.com -m HEAD -w 500 -r 10000 -n 1000000
+
+# 5K RPS with Cloudflare bypass
+sitemon request -u https://codecept.io -w 200 -r 5000 -n 50000 --bypass-cloudflare
+```
+
+### API Endpoint Flooding
+
+```bash
+# POST flood to login endpoint
+sitemon request -u https://api.example.com/login -m POST -w 100 -r 1000 -n 10000
+
+# GET flood to specific endpoint
+sitemon request -u https://api.example.com/users -m GET -w 200 -r 5000 -n 50000
+
+# JSON payload POST flood
+sitemon request -u https://api.example.com/submit -m POST -w 100 -r 2000 -n 20000
+```
+
+### Continuous Flood Mode
+
+```bash
+# Run for 1 hour at 5K RPS (18M requests)
+sitemon request -u https://example.com -w 500 -r 5000 -n 18000000
+
+# Sustained 10K RPS attack simulation
+sitemon request -u https://example.com -w 1000 -r 10000 -n 3600000
+```
+
+### Custom Headers for Flood Testing
+
+```bash
+# With custom user agent
+sitemon request -u https://example.com -w 200 -r 5000 -n 50000
+
+# With referer
+sitemon request -u https://example.com -w 200 -r 5000 -n 50000
+
+# With authentication
+sitemon request -u https://api.example.com/secure -w 100 -r 1000 -n 10000
+```
+
 ## Load Testing Guide
 
 ### Safe Thresholds by VPS RAM
@@ -157,3 +229,27 @@ Latency Stats (ms):
 - Monitor target server resources
 - For millions of requests, use `--stats` to save results
 - Use `--bypass-cloudflare` for Cloudflare-protected sites
+
+## Important Notes
+
+### Responsible Usage
+
+Only test servers you own or have permission to test. Unauthorized testing may be illegal.
+
+### Your Server Protection
+
+When flood testing your own servers:
+
+- Monitor server CPU, memory, and network bandwidth
+- Start with lower RPS and gradually increase
+- Use `--timeout` to detect stalled connections
+- Check results for high failure rates indicating server overload
+
+### Network Limits
+
+| Network Type | Max Safe RPS |
+|--------------|--------------|
+| Home DSL | 500-1,000 |
+| Home Fiber | 2,000-5,000 |
+| VPS 1Gbps | 10,000-20,000 |
+| Dedicated Server | 50,000+ |
