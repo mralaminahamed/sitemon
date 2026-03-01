@@ -104,12 +104,11 @@ func WithCookie(cookie string) ClientOption {
 
 func WithCloudflareBypass() ClientOption {
 	ua := getRandomUserAgent()
-	cfCookies := generateFakeCFCookies()
 	return func(c *resty.Client) {
 		c.SetHeader("User-Agent", ua)
 		c.SetHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 		c.SetHeader("Accept-Language", "en-US,en;q=0.9")
-		c.SetHeader("Accept-Encoding", "gzip, deflate, br")
+		c.SetHeader("Accept-Encoding", "gzip, deflate")
 		c.SetHeader("DNT", "1")
 		c.SetHeader("Connection", "keep-alive")
 		c.SetHeader("Upgrade-Insecure-Requests", "1")
@@ -121,9 +120,6 @@ func WithCloudflareBypass() ClientOption {
 		c.SetHeader("Sec-Ch-Ua-Mobile", "?0")
 		c.SetHeader("Sec-Ch-Ua-Platform", `"Windows"`)
 		c.SetHeader("Cache-Control", "max-age=0")
-		for name, value := range cfCookies {
-			c.SetCookie(&http.Cookie{Name: name, Value: value})
-		}
 	}
 }
 

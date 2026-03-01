@@ -20,7 +20,8 @@ var scheduleCmd = &cobra.Command{
 	Long: `Run health checks on a cron schedule.
 Examples:
   sitemon schedule --cron "*/5 * * * *" --url https://example.com
-  sitemon schedule --cron "0 * * * *" --url https://example.com --webhook https://hooks.slack.com/...`,
+  sitemon schedule --cron "0 * * * *" --url https://example.com --webhook https://hooks.slack.com/...
+  sitemon schedule --cron "*/5 * * * *" --url https://codexpert.io --bypass-cloudflare`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if cronExpr == "" {
 			return fmt.Errorf("cron expression is required (--cron)")
@@ -36,6 +37,9 @@ Examples:
 		}
 
 		client := http.NewClient(scheduleTimeout)
+		if scheduleBypassCF {
+			client = http.NewClient(scheduleTimeout, http.WithCloudflareBypass())
+		}
 		healthChecker := monitor.NewHealthChecker(client)
 
 		var notifier *notify.Notifier
@@ -43,7 +47,7 @@ Examples:
 			notifier = notify.NewNotifier(scheduleWebhook)
 		}
 
-		fmt.Printf("Portman Scheduler\n")
+		fmt.Printf("Sitemon Scheduler\n")
 		fmt.Printf("=================\n")
 		fmt.Printf("Schedule: %s (%s)\n", cronExpr, scheduler.HumanReadable(cronExpr))
 		fmt.Printf("URLs: %v\n", scheduleURLs)
@@ -107,10 +111,11 @@ Examples:
 }
 
 var (
-	cronExpr        string
-	scheduleURLs    []string
-	scheduleTimeout time.Duration
-	scheduleWebhook string
+	cronExpr         string
+	scheduleURLs     []string
+	scheduleTimeout  time.Duration
+	scheduleWebhook  string
+	scheduleBypassCF bool
 )
 
 func init() {
@@ -120,4 +125,5 @@ func init() {
 	scheduleCmd.Flags().StringSliceVarP(&scheduleURLs, "url", "u", []string{}, "URL(s) to check")
 	scheduleCmd.Flags().DurationVar(&scheduleTimeout, "timeout", 10*time.Second, "request timeout")
 	scheduleCmd.Flags().StringVar(&scheduleWebhook, "webhook", "", "webhook URL for alerts")
+	scheduleCmd.Flags().BoolVar(&scheduleBypassCF, "bypass-cloudflare", false, "use browser headers to bypass Cloudflare bot detection")
 }
