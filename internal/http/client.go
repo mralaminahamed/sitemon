@@ -81,6 +81,27 @@ func WithHeaders(headers map[string]string) ClientOption {
 	}
 }
 
+func WithProxy(proxyURL string) ClientOption {
+	return func(c *resty.Client) {
+		c.SetProxy(proxyURL)
+	}
+}
+
+func WithFollowRedirects(follow bool) ClientOption {
+	return func(c *resty.Client) {
+		c.SetRedirectPolicy(resty.NoRedirectPolicy())
+		if follow {
+			c.SetRedirectPolicy(resty.FlexibleRedirectPolicy(10))
+		}
+	}
+}
+
+func WithCookie(cookie string) ClientOption {
+	return func(c *resty.Client) {
+		c.SetHeader("Cookie", cookie)
+	}
+}
+
 func WithCloudflareBypass() ClientOption {
 	ua := getRandomUserAgent()
 	cfCookies := generateFakeCFCookies()
@@ -192,6 +213,7 @@ func (c *Client) Options(url string) (*resty.Response, error) {
 type RequestResult struct {
 	StatusCode   int
 	ResponseTime time.Duration
+	ResponseSize int64
 	Error        error
 }
 
@@ -201,6 +223,7 @@ func (c *Client) SendHead(url string) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -211,6 +234,7 @@ func (c *Client) SendGet(url string) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -221,6 +245,7 @@ func (c *Client) SendPost(url string, body interface{}) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -231,6 +256,7 @@ func (c *Client) SendPut(url string, body interface{}) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -241,6 +267,7 @@ func (c *Client) SendPatch(url string, body interface{}) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -251,6 +278,7 @@ func (c *Client) SendDelete(url string) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -261,6 +289,7 @@ func (c *Client) SendOptions(url string) RequestResult {
 	return RequestResult{
 		StatusCode:   statusCode(resp, err),
 		ResponseTime: time.Since(start),
+		ResponseSize: responseSize(resp),
 		Error:        err,
 	}
 }
@@ -280,4 +309,11 @@ func statusCode(resp *resty.Response, err error) int {
 		return 0
 	}
 	return resp.StatusCode()
+}
+
+func responseSize(resp *resty.Response) int64 {
+	if resp == nil {
+		return 0
+	}
+	return int64(len(resp.Body()))
 }
