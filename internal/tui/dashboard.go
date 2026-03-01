@@ -49,21 +49,22 @@ var (
 )
 
 type Dashboard struct {
-	urls       []string
-	results    map[string]*models.HealthResult
-	checking   map[string]bool
-	resultsMu  sync.RWMutex
-	interval   time.Duration
-	client     *http.Client
-	stopChan   chan bool
-	stats      DashboardStats
-	lastUpdate time.Time
-	startTime  time.Time
-	width      int
-	height     int
-	history    []HistoryEntry
-	historyMu  sync.RWMutex
-	maxHistory int
+	urls             []string
+	results          map[string]*models.HealthResult
+	checking         map[string]bool
+	resultsMu        sync.RWMutex
+	interval         time.Duration
+	client           *http.Client
+	stopChan         chan bool
+	stats            DashboardStats
+	lastUpdate       time.Time
+	startTime        time.Time
+	width            int
+	height           int
+	history          []HistoryEntry
+	historyMu        sync.RWMutex
+	maxHistory       int
+	bypassCloudflare bool
 }
 
 type DashboardStats struct {
@@ -86,22 +87,23 @@ type HistoryEntry struct {
 	Timestamp  time.Time
 }
 
-func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) *Dashboard {
+func NewDashboard(urls []string, interval time.Duration, timeout time.Duration, bypassCloudflare bool) *Dashboard {
 	width, height := getTerminalSize()
 	return &Dashboard{
-		urls:       urls,
-		results:    make(map[string]*models.HealthResult),
-		checking:   make(map[string]bool),
-		interval:   interval,
-		client:     http.NewClient(timeout),
-		stopChan:   make(chan bool),
-		stats:      DashboardStats{},
-		lastUpdate: time.Now(),
-		startTime:  time.Now(),
-		width:      width,
-		height:     height,
-		history:    make([]HistoryEntry, 0, 100),
-		maxHistory: 100,
+		urls:             urls,
+		results:          make(map[string]*models.HealthResult),
+		checking:         make(map[string]bool),
+		interval:         interval,
+		client:           http.NewClient(timeout),
+		stopChan:         make(chan bool),
+		stats:            DashboardStats{},
+		lastUpdate:       time.Now(),
+		startTime:        time.Now(),
+		width:            width,
+		height:           height,
+		history:          make([]HistoryEntry, 0, 100),
+		maxHistory:       100,
+		bypassCloudflare: bypassCloudflare,
 	}
 }
 
@@ -129,6 +131,10 @@ func getTermSize() (width, height int, err error) {
 }
 
 func (d *Dashboard) Start() error {
+	clientTimeout := 10 * time.Second
+	if d.bypassCloudflare {
+		d.client = http.NewClient(clientTimeout, http.WithCloudflareBypass())
+	}
 	healthChecker := monitor.NewHealthChecker(d.client)
 
 	d.checkURLs(healthChecker)
