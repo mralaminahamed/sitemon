@@ -329,28 +329,24 @@ func (d *Dashboard) renderStatsBar(w int) string {
 		uptimeColor = red
 	}
 
-	box := func(label string, value string, color lipgloss.Color) string {
-		return statBoxStyle.Copy().
-			BorderForeground(color).
-			Render(fmt.Sprintf(" %s ", label)) +
-			statBoxStyle.Copy().
-				BorderForeground(color).
-				Foreground(color).
-				Bold(true).
-				Render(fmt.Sprintf(" %s ", value))
+	item := func(label string, value string, color lipgloss.Color) string {
+		return lipgloss.NewStyle().
+			Foreground(color).
+			Bold(true).
+			Render(fmt.Sprintf("%s:%s", label, value))
 	}
 
 	stats := "  "
-	stats += box("TOTAL", fmt.Sprintf("%d", d.stats.TotalChecks), cyan)
-	stats += box("UP", fmt.Sprintf("%d", d.stats.SuccessCount), green)
-	stats += box("DOWN", fmt.Sprintf("%d", d.stats.FailureCount), red)
-	stats += box("UPTIME", fmt.Sprintf("%.1f%%", d.stats.UptimePercent), uptimeColor)
+	stats += item(" TOTAL ", fmt.Sprintf("%d ", d.stats.TotalChecks), cyan)
+	stats += item(" UP ", fmt.Sprintf("%d ", d.stats.SuccessCount), green)
+	stats += item(" DOWN ", fmt.Sprintf("%d ", d.stats.FailureCount), red)
+	stats += item(" UPTIME ", fmt.Sprintf("%.1f%% ", d.stats.UptimePercent), uptimeColor)
 
 	stats += "\n  "
-	stats += box("AVG", formatLatency(d.stats.AvgLatency), cyan)
-	stats += box("MIN", formatLatency(d.stats.MinLatency), green)
-	stats += box("MAX", formatLatency(d.stats.MaxLatency), yellow)
-	stats += box("RPS", fmt.Sprintf("%.1f", d.stats.RPS), orange)
+	stats += item(" AVG ", fmt.Sprintf("%s ", formatLatency(d.stats.AvgLatency)), cyan)
+	stats += item(" MIN ", fmt.Sprintf("%s ", formatLatency(d.stats.MinLatency)), green)
+	stats += item(" MAX ", fmt.Sprintf("%s ", formatLatency(d.stats.MaxLatency)), yellow)
+	stats += item(" RPS ", fmt.Sprintf("%.1f ", d.stats.RPS), orange)
 
 	return stats
 }
