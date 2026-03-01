@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -19,27 +20,32 @@ var (
 	gray    = lipgloss.Color("240")
 	magenta = lipgloss.Color("201")
 	white   = lipgloss.Color("255")
+	blue    = lipgloss.Color("33")
+	orange  = lipgloss.Color("208")
 
-	successStyle = lipgloss.NewStyle().
-			Foreground(green).
-			Bold(true)
+	successStyle  = lipgloss.NewStyle().Foreground(green).Bold(true)
+	errorStyle    = lipgloss.NewStyle().Foreground(red).Bold(true)
+	warningStyle  = lipgloss.NewStyle().Foreground(yellow).Bold(true)
+	infoStyle     = lipgloss.NewStyle().Foreground(cyan)
+	disabledStyle = lipgloss.NewStyle().Foreground(gray)
+	urlStyle      = lipgloss.NewStyle().Foreground(white)
+	boldStyle     = lipgloss.NewStyle().Bold(true)
 
-	errorStyle = lipgloss.NewStyle().
-			Foreground(red).
-			Bold(true)
+	titleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(magenta).
+			Background(lipgloss.Color("236")).
+			Padding(0, 1)
 
-	warningStyle = lipgloss.NewStyle().
-			Foreground(yellow).
-			Bold(true)
+	statBoxStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(gray).
+			Padding(0, 1).
+			MarginRight(1)
 
-	infoStyle = lipgloss.NewStyle().
+	headerStyle = lipgloss.NewStyle().
+			Bold(true).
 			Foreground(cyan)
-
-	disabledStyle = lipgloss.NewStyle().
-			Foreground(gray)
-
-	urlStyle = lipgloss.NewStyle().
-			Foreground(white)
 )
 
 type Dashboard struct {
@@ -50,11 +56,14 @@ type Dashboard struct {
 	interval   time.Duration
 	client     *http.Client
 	stopChan   chan bool
-	width      int
-	height     int
 	stats      DashboardStats
 	lastUpdate time.Time
 	startTime  time.Time
+	width      int
+	height     int
+	history    []HistoryEntry
+	historyMu  sync.RWMutex
+	maxHistory int
 }
 
 type DashboardStats struct {
@@ -65,9 +74,20 @@ type DashboardStats struct {
 	AvgLatency    time.Duration
 	MinLatency    time.Duration
 	MaxLatency    time.Duration
+	TotalRequests int
+	RPS           float64
+}
+
+type HistoryEntry struct {
+	URL        string
+	Status     string
+	StatusCode int
+	Latency    time.Duration
+	Timestamp  time.Time
 }
 
 func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) *Dashboard {
+	width, height := getTerminalSize()
 	return &Dashboard{
 		urls:       urls,
 		results:    make(map[string]*models.HealthResult),
@@ -78,7 +98,34 @@ func NewDashboard(urls []string, interval time.Duration, timeout time.Duration) 
 		stats:      DashboardStats{},
 		lastUpdate: time.Now(),
 		startTime:  time.Now(),
+		width:      width,
+		height:     height,
+		history:    make([]HistoryEntry, 0, 100),
+		maxHistory: 100,
 	}
+}
+
+func getTerminalSize() (width, height int) {
+	width = 120
+	height = 40
+
+	if envWidth := os.Getenv("TERMINAL_WIDTH"); envWidth != "" {
+		if w, err := fmt.Sscanf(envWidth, "%d", &width); err == nil && w > 0 {
+			return width, height
+		}
+	}
+
+	if w, h, err := getTermSize(); err == nil {
+		width = w
+		height = h
+	}
+	return width, height
+}
+
+func getTermSize() (width, height int, err error) {
+	width = 120
+	height = 40
+	return width, height, nil
 }
 
 func (d *Dashboard) Start() error {
@@ -88,23 +135,34 @@ func (d *Dashboard) Start() error {
 
 	go d.monitorLoop(healthChecker)
 
-	fmt.Print(d.Render())
-	fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
-
-	ticker := time.NewTicker(d.interval)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case <-d.stopChan:
+			d.print(d.Goodbye())
 			return nil
-		case <-ticker.C:
-			fmt.Print("\033[2J")
-			fmt.Print("\033[H")
-			fmt.Print(d.Render())
-			fmt.Println(disabledStyle.Render("\n  Press Ctrl+C to exit  "))
+		case <-time.After(d.interval):
+			width, height := getTerminalSize()
+			d.width = width
+			d.height = height
+			d.print(d.Render())
 		}
 	}
+}
+
+func (d *Dashboard) print(s string) {
+	fmt.Print("\033[2J")
+	fmt.Print("\033[H")
+	fmt.Print(s)
+}
+
+func (d *Dashboard) Goodbye() string {
+	var output string
+	output += "\n\n"
+	output += successStyle.Render("  ╔══════════════════════════════════════════════════════════╗\n")
+	output += successStyle.Render("  ║           Thanks for using Sitemon!                     ║\n")
+	output += successStyle.Render("  ╚══════════════════════════════════════════════════════════╝\n")
+	output += "\n"
+	return output
 }
 
 func (d *Dashboard) monitorLoop(healthChecker *monitor.HealthChecker) {
@@ -144,6 +202,7 @@ func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 			d.resultsMu.Unlock()
 			if err == nil {
 				currentResults[u] = result
+				d.addToHistory(u, result)
 			}
 		}(url)
 	}
@@ -185,7 +244,28 @@ func (d *Dashboard) checkURLs(healthChecker *monitor.HealthChecker) {
 		}
 	}
 
+	d.stats.TotalRequests++
+	d.stats.RPS = float64(d.stats.TotalRequests) / time.Since(d.startTime).Seconds()
+
 	d.lastUpdate = time.Now()
+}
+
+func (d *Dashboard) addToHistory(url string, result *models.HealthResult) {
+	d.historyMu.Lock()
+	defer d.historyMu.Unlock()
+
+	entry := HistoryEntry{
+		URL:        url,
+		Status:     result.Status,
+		StatusCode: result.StatusCode,
+		Latency:    result.ResponseTime,
+		Timestamp:  result.Timestamp,
+	}
+
+	d.history = append(d.history, entry)
+	if len(d.history) > d.maxHistory {
+		d.history = d.history[1:]
+	}
 }
 
 func (d *Dashboard) Stop() {
@@ -196,109 +276,267 @@ func (d *Dashboard) Render() string {
 	d.resultsMu.RLock()
 	defer d.resultsMu.RUnlock()
 
+	w := d.width
+	if w < 80 {
+		w = 80
+	}
+
 	var output string
 
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(magenta).
-		Render("◈ Portman Dashboard")
+	output += d.renderHeader(w)
+	output += d.renderStatsBar(w)
+	output += "\n"
+	output += d.renderURLTable(w)
+	output += "\n"
+	output += d.renderRecentHistory(w)
+	output += "\n"
+	output += d.renderFooter(w)
 
-	info := lipgloss.NewStyle().
-		Foreground(gray).
-		Render(fmt.Sprintf("%d URLs • %s • %s",
-			len(d.urls),
-			d.interval.String(),
-			d.lastUpdate.Format("15:04:05")))
+	return output
+}
 
-	output += title + "\n" + info + "\n"
+func (d *Dashboard) renderHeader(w int) string {
+	sep := lipgloss.NewStyle().Foreground(cyan).Render(string(make([]byte, w)))
 
-	separator := lipgloss.NewStyle().Foreground(cyan).Render("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	output += separator + "\n"
+	title := fmt.Sprintf(" ◈ Sitemon Dashboard ")
+	output := titleStyle.Width(w).Render(title)
+	output += "\n"
+	output += sep + "\n"
 
-	output += d.renderStatsBar()
+	info := fmt.Sprintf(" URLs: %d | Interval: %s | Running: %s | Updated: %s",
+		len(d.urls),
+		d.interval.String(),
+		d.uptime(),
+		d.lastUpdate.Format("15:04:05"))
+	output += lipgloss.NewStyle().Foreground(gray).Render(info) + "\n"
+	output += sep + "\n"
 
-	numCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(3).AlignHorizontal(lipgloss.Left)
-	urlCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(32)
-	statusCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(12)
-	codeCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(6)
-	latencyCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(10)
-	infoCol := lipgloss.NewStyle().Bold(true).Foreground(cyan).Width(14)
+	return output
+}
 
-	output += numCol.Render("#") + "  " +
-		urlCol.Render("URL") + "  " +
-		statusCol.Render("STATUS") + "  " +
-		codeCol.Render("CODE") + "  " +
-		latencyCol.Render("LATENCY") + "  " +
-		infoCol.Render("INFO") + "\n"
+func (d *Dashboard) renderStatsBar(w int) string {
+	uptimeColor := green
+	if d.stats.UptimePercent < 80 {
+		uptimeColor = yellow
+	}
+	if d.stats.UptimePercent < 50 {
+		uptimeColor = red
+	}
 
-	sepStyle := lipgloss.NewStyle().Foreground(gray)
-	output += sepStyle.Render("───") + "  " +
-		sepStyle.Render("────────────────────────────────") + "  " +
-		sepStyle.Render("────────────") + "  " +
-		sepStyle.Render("──────") + "  " +
-		sepStyle.Render("──────────") + "  " +
-		sepStyle.Render("──────────────") + "\n"
+	box := func(label string, value string, color lipgloss.Color) string {
+		return statBoxStyle.Copy().
+			BorderForeground(color).
+			Render(fmt.Sprintf(" %s ", label)) +
+			statBoxStyle.Copy().
+				BorderForeground(color).
+				Foreground(color).
+				Bold(true).
+				Render(fmt.Sprintf(" %s ", value))
+	}
+
+	stats := "  "
+	stats += box("TOTAL", fmt.Sprintf("%d", d.stats.TotalChecks), cyan)
+	stats += box("UP", fmt.Sprintf("%d", d.stats.SuccessCount), green)
+	stats += box("DOWN", fmt.Sprintf("%d", d.stats.FailureCount), red)
+	stats += box("UPTIME", fmt.Sprintf("%.1f%%", d.stats.UptimePercent), uptimeColor)
+
+	stats += "\n  "
+	stats += box("AVG", formatLatency(d.stats.AvgLatency), cyan)
+	stats += box("MIN", formatLatency(d.stats.MinLatency), green)
+	stats += box("MAX", formatLatency(d.stats.MaxLatency), yellow)
+	stats += box("RPS", fmt.Sprintf("%.1f", d.stats.RPS), orange)
+
+	return stats
+}
+
+func (d *Dashboard) renderURLTable(w int) string {
+	numWidth := 4
+	urlWidth := (w - numWidth - 14 - 12 - 12) / 2
+	if urlWidth < 20 {
+		urlWidth = 20
+	}
+
+	header := ""
+	header += headerStyle.Width(numWidth).AlignHorizontal(lipgloss.Left).Render("#")
+	header += "  "
+	header += headerStyle.Width(urlWidth).Render("URL")
+	header += "  "
+	header += headerStyle.Width(14).Render("STATUS")
+	header += "  "
+	header += headerStyle.Width(12).Render("CODE")
+	header += "  "
+	header += headerStyle.Width(12).Render("LATENCY")
+
+	output := header + "\n"
+
+	sep := ""
+	sep += lipgloss.NewStyle().Foreground(gray).Render(string(make([]byte, numWidth)))
+	sep += "  "
+	sep += lipgloss.NewStyle().Foreground(gray).Render(string(make([]byte, urlWidth)))
+	sep += "  "
+	sep += lipgloss.NewStyle().Foreground(gray).Render(string(make([]byte, 14)))
+	sep += "  "
+	sep += lipgloss.NewStyle().Foreground(gray).Render(string(make([]byte, 12)))
+	sep += "  "
+	sep += lipgloss.NewStyle().Foreground(gray).Render(string(make([]byte, 12)))
+	output += sep + "\n"
 
 	for i, url := range d.urls {
 		result, ok := d.results[url]
 		isChecking := d.checking[url]
 
-		rowNum := numCol.Render(fmt.Sprintf("%d", i+1))
-		urlCell := urlStyle.Render(truncateURL(url, 30))
+		row := ""
+		row += boldStyle.Width(numWidth).Render(fmt.Sprintf("%d", i+1))
+		row += "  "
+
+		truncatedURL := url
+		if len(truncatedURL) > urlWidth {
+			truncatedURL = truncatedURL[:urlWidth-3] + "..."
+		}
+		row += urlStyle.Width(urlWidth).Render(truncatedURL)
+		row += "  "
 
 		if isChecking {
-			statusCell := infoStyle.Render("● Checking")
-			codeCell := infoStyle.Render("...")
-			latencyCell := infoStyle.Render("...")
-			infoCell := infoStyle.Render("in progress")
-			output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
+			row += infoStyle.Width(14).Render("● Checking")
+			row += "  "
+			row += infoStyle.Width(12).Render("...")
+			row += "  "
+			row += infoStyle.Width(12).Render("...")
+			output += row + "\n"
 			continue
 		}
 
 		if !ok {
-			statusCell := disabledStyle.Render("○ Pending")
-			codeCell := disabledStyle.Render("---")
-			latencyCell := disabledStyle.Render("---")
-			infoCell := disabledStyle.Render("awaiting")
-			output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
+			row += disabledStyle.Width(14).Render("○ Pending")
+			row += "  "
+			row += disabledStyle.Width(12).Render("---")
+			row += "  "
+			row += disabledStyle.Width(12).Render("---")
+			output += row + "\n"
 			continue
 		}
 
-		var statusCell, codeCell, latencyCell, infoCell string
+		var statusStyle, codeStyle, latencyStyle lipgloss.Style
+		var statusText, codeText, latencyText string
 
 		switch result.Status {
 		case "UP":
-			statusCell = successStyle.Render("● UP")
-			codeCell = successStyle.Render(fmt.Sprintf("%d", result.StatusCode))
-			latencyCell = d.getLatencyStyle(result.ResponseTime).Render(d.formatLatency(result.ResponseTime))
-			infoCell = successStyle.Render("healthy")
+			statusStyle = successStyle
+			codeStyle = successStyle
+			latencyStyle = d.getLatencyStyle(result.ResponseTime)
+			statusText = "● UP"
+			codeText = fmt.Sprintf("%d", result.StatusCode)
+			latencyText = formatLatency(result.ResponseTime)
 		case "DOWN":
-			statusCell = errorStyle.Render("✗ DOWN")
-			codeCell = errorStyle.Render(fmt.Sprintf("%d", result.StatusCode))
-			latencyCell = errorStyle.Render(d.formatLatency(result.ResponseTime))
-			if result.Error != "" {
-				infoCell = errorStyle.Render(truncateError(result.Error, 12))
-			} else {
-				infoCell = errorStyle.Render("server error")
-			}
+			statusStyle = errorStyle
+			codeStyle = errorStyle
+			latencyStyle = errorStyle
+			statusText = "✗ DOWN"
+			codeText = fmt.Sprintf("%d", result.StatusCode)
+			latencyText = formatLatency(result.ResponseTime)
 		case "WARNING":
-			statusCell = warningStyle.Render("⚠ WARN")
-			codeCell = warningStyle.Render(fmt.Sprintf("%d", result.StatusCode))
-			latencyCell = warningStyle.Render(d.formatLatency(result.ResponseTime))
-			infoCell = warningStyle.Render("client error")
+			statusStyle = warningStyle
+			codeStyle = warningStyle
+			latencyStyle = warningStyle
+			statusText = "⚠ WARN"
+			codeText = fmt.Sprintf("%d", result.StatusCode)
+			latencyText = formatLatency(result.ResponseTime)
 		case "REDIRECT":
-			statusCell = infoStyle.Render("↪ REDIRECT")
-			codeCell = infoStyle.Render(fmt.Sprintf("%d", result.StatusCode))
-			latencyCell = infoStyle.Render(d.formatLatency(result.ResponseTime))
-			infoCell = infoStyle.Render("redirected")
+			statusStyle = infoStyle
+			codeStyle = infoStyle
+			latencyStyle = infoStyle
+			statusText = "↪ REDIRECT"
+			codeText = fmt.Sprintf("%d", result.StatusCode)
+			latencyText = formatLatency(result.ResponseTime)
+		default:
+			statusStyle = disabledStyle
+			codeStyle = disabledStyle
+			latencyStyle = disabledStyle
+			statusText = "○ UNKNOWN"
+			codeText = "---"
+			latencyText = "---"
 		}
 
-		output += rowNum + "  " + urlCell + "  " + statusCell + "  " + codeCell + "  " + latencyCell + "  " + infoCell + "\n"
+		row += statusStyle.Width(14).Render(statusText)
+		row += "  "
+		row += codeStyle.Width(12).Render(codeText)
+		row += "  "
+		row += latencyStyle.Width(12).Render(latencyText)
+
+		output += row + "\n"
 	}
 
-	output += "\n" + disabledStyle.Render("Ctrl+C to exit • "+d.interval.String()+" refresh • "+d.uptime())
+	return output
+}
+
+func (d *Dashboard) renderRecentHistory(w int) string {
+	d.historyMu.RLock()
+	defer d.historyMu.RUnlock()
+
+	if len(d.history) == 0 {
+		return ""
+	}
+
+	header := boldStyle.Render(" Recent Activity ")
+	output := header + "\n"
+
+	recent := d.history
+	if len(recent) > 10 {
+		recent = recent[len(recent)-10:]
+	}
+
+	for _, entry := range recent {
+		timestamp := entry.Timestamp.Format("15:04:05")
+		var statusIcon string
+		var statusColor lipgloss.Color
+
+		switch entry.Status {
+		case "UP":
+			statusIcon = "✓"
+			statusColor = green
+		case "DOWN":
+			statusIcon = "✗"
+			statusColor = red
+		case "WARNING":
+			statusIcon = "⚠"
+			statusColor = yellow
+		default:
+			statusIcon = "○"
+			statusColor = gray
+		}
+
+		truncatedURL := entry.URL
+		if len(truncatedURL) > 40 {
+			truncatedURL = truncatedURL[:37] + "..."
+		}
+
+		row := fmt.Sprintf(" %s [%s] %s - %d (%s) in %s",
+			lipgloss.NewStyle().Foreground(gray).Render(timestamp),
+			lipgloss.NewStyle().Foreground(statusColor).Render(statusIcon),
+			truncatedURL,
+			entry.StatusCode,
+			entry.Status,
+			formatLatency(entry.Latency))
+		output += row + "\n"
+	}
 
 	return output
+}
+
+func (d *Dashboard) renderFooter(w int) string {
+	sep := lipgloss.NewStyle().Foreground(cyan).Render(string(make([]byte, w)))
+	footer := sep + "\n"
+
+	help := " Ctrl+C to exit "
+	footer += disabledStyle.Render(help)
+
+	footer += " | "
+	footer += lipgloss.NewStyle().Foreground(gray).Render("Interval: " + d.interval.String())
+
+	footer += " | "
+	footer += lipgloss.NewStyle().Foreground(gray).Render("Uptime: " + d.uptime())
+
+	return footer
 }
 
 func (d *Dashboard) getLatencyStyle(latency time.Duration) lipgloss.Style {
@@ -315,7 +553,7 @@ func (d *Dashboard) getLatencyStyle(latency time.Duration) lipgloss.Style {
 	}
 }
 
-func (d *Dashboard) formatLatency(latency time.Duration) string {
+func formatLatency(latency time.Duration) string {
 	ms := latency.Milliseconds()
 	if ms < 1000 {
 		return fmt.Sprintf("%dms", ms)
@@ -323,53 +561,8 @@ func (d *Dashboard) formatLatency(latency time.Duration) string {
 	return fmt.Sprintf("%.1fs", float64(ms)/1000)
 }
 
-func truncateURL(url string, maxLen int) string {
-	if len(url) > maxLen {
-		return url[:maxLen-3] + "..."
-	}
-	return url
-}
-
-func truncateError(err string, maxLen int) string {
-	if len(err) > maxLen {
-		return err[:maxLen-3] + "..."
-	}
-	return err
-}
-
 func (d *Dashboard) uptime() string {
 	return time.Since(d.startTime).Round(time.Second).String()
-}
-
-func (d *Dashboard) renderStatsBar() string {
-	uptimeColor := green
-	if d.stats.UptimePercent < 80 {
-		uptimeColor = yellow
-	}
-	if d.stats.UptimePercent < 50 {
-		uptimeColor = red
-	}
-
-	boxStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(gray).
-		Padding(0, 1).
-		MarginRight(1)
-
-	totalBox := boxStyle.Copy().BorderForeground(cyan).Render(fmt.Sprintf(" TOTAL %d ", d.stats.TotalChecks))
-	upBox := boxStyle.Copy().BorderForeground(green).Render(fmt.Sprintf(" UP %d ", d.stats.SuccessCount))
-	downBox := boxStyle.Copy().BorderForeground(red).Render(fmt.Sprintf(" DOWN %d ", d.stats.FailureCount))
-	uptimeBox := boxStyle.Copy().BorderForeground(uptimeColor).Render(fmt.Sprintf(" %.1f%% ", d.stats.UptimePercent))
-
-	row1 := "  " + totalBox + upBox + downBox + uptimeBox + "\n"
-
-	avgBox := boxStyle.Copy().BorderForeground(cyan).Render(fmt.Sprintf(" AVG %s ", d.stats.AvgLatency.String()))
-	minBox := boxStyle.Copy().BorderForeground(green).Render(fmt.Sprintf(" MIN %s ", d.stats.MinLatency.String()))
-	maxBox := boxStyle.Copy().BorderForeground(yellow).Render(fmt.Sprintf(" MAX %s ", d.stats.MaxLatency.String()))
-
-	row2 := "  " + avgBox + minBox + maxBox + "\n"
-
-	return row1 + row2
 }
 
 func (d *Dashboard) GetResults() map[string]*models.HealthResult {
