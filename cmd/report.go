@@ -6,31 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/mralaminahamed/sitemon/internal/models"
 	"github.com/spf13/cobra"
 )
-
-type ReportData struct {
-	GeneratedAt    string     `json:"generated_at"`
-	ReportType     string     `json:"report_type"`
-	Summary        Summary    `json:"summary"`
-	Checks         []Check    `json:"checks,omitempty"`
-	RequestStats   RequestStats `json:"request_stats,omitempty"`
-}
-
-type Summary struct {
-	TotalChecks   int     `json:"total_checks"`
-	Successful    int     `json:"successful"`
-	Failed        int     `json:"failed"`
-	UptimePercent float64 `json:"uptime_percentage"`
-}
-
-type Check struct {
-	URL          string        `json:"url"`
-	Status       string        `json:"status"`
-	StatusCode   int           `json:"status_code"`
-	ResponseTime time.Duration `json:"response_time_ms"`
-	Timestamp    time.Time     `json:"timestamp"`
-}
 
 var reportCmd = &cobra.Command{
 	Use:   "report",
@@ -39,7 +17,7 @@ var reportCmd = &cobra.Command{
 Report includes detailed statistics, check history, and performance metrics.
 Can combine multiple check results and request statistics.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		report := ReportData{
+		report := models.ReportData{
 			GeneratedAt: time.Now().Format(time.RFC3339),
 			ReportType:  reportType,
 		}
@@ -50,7 +28,7 @@ Can combine multiple check results and request statistics.`,
 				return fmt.Errorf("failed to read check results: %w", err)
 			}
 
-			var checks []Check
+			var checks []models.HealthResult
 			if err := json.Unmarshal(data, &checks); err != nil {
 				return fmt.Errorf("failed to parse check results: %w", err)
 			}
@@ -81,7 +59,7 @@ Can combine multiple check results and request statistics.`,
 				return fmt.Errorf("failed to read request stats: %w", err)
 			}
 
-			var stats RequestStats
+			var stats models.RequestStats
 			if err := json.Unmarshal(data, &stats); err != nil {
 				return fmt.Errorf("failed to parse request stats: %w", err)
 			}
@@ -113,10 +91,10 @@ Can combine multiple check results and request statistics.`,
 }
 
 var (
-	outputPath         string
-	reportType        string
-	checkResultsFile  string
-	requestStatsFile  string
+	outputPath       string
+	reportType       string
+	checkResultsFile string
+	requestStatsFile string
 )
 
 func init() {

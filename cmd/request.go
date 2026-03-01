@@ -12,31 +12,12 @@ import (
 
 	"github.com/mralaminahamed/sitemon/internal/http"
 	"github.com/mralaminahamed/sitemon/internal/logger"
+	"github.com/mralaminahamed/sitemon/internal/models"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
-
-type RequestStats struct {
-	TotalRequests  int           `json:"total_requests"`
-	Successful     int           `json:"successful"`
-	Failed         int           `json:"failed"`
-	Duration       time.Duration `json:"duration"`
-	RequestsPerSec float64       `json:"requests_per_sec"`
-	SuccessRate    float64       `json:"success_rate"`
-	AvgLatency     time.Duration `json:"avg_latency_ms"`
-	MinLatency     time.Duration `json:"min_latency_ms"`
-	MaxLatency     time.Duration `json:"max_latency_ms"`
-	P50Latency     time.Duration `json:"p50_latency_ms"`
-	P90Latency     time.Duration `json:"p90_latency_ms"`
-	P95Latency     time.Duration `json:"p95_latency_ms"`
-	P99Latency     time.Duration `json:"p99_latency_ms"`
-	TargetURL      string        `json:"target_url"`
-	Method         string        `json:"method"`
-	Workers        int           `json:"workers"`
-	RPS            int           `json:"rps_limit"`
-}
 
 var requestCmd = &cobra.Command{
 	Use:   "request [url]",
@@ -157,7 +138,7 @@ Reports detailed latency statistics including p50, p90, p95, and p99 percentiles
 
 		avgLatencyMs := atomic.LoadInt64(&totalLatency) / actualTotal
 
-		stats := RequestStats{
+		stats := models.RequestStats{
 			TotalRequests:  int(actualTotal),
 			Successful:     int(atomic.LoadInt64(&successCount)),
 			Failed:         int(atomic.LoadInt64(&failureCount)),

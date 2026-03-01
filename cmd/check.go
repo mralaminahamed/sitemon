@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mralaminahamed/sitemon/internal/history"
 	"github.com/mralaminahamed/sitemon/internal/http"
 	"github.com/mralaminahamed/sitemon/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/notify"
 	"github.com/mralaminahamed/sitemon/internal/ssl"
+	"github.com/mralaminahamed/sitemon/internal/storage"
 	"github.com/mralaminahamed/sitemon/internal/validation"
-	"github.com/mralaminahamed/sitemon/internal/webhook"
 	"github.com/spf13/cobra"
 )
 
@@ -74,11 +74,11 @@ Supports multiple URLs for batch checking.`,
 		}
 
 		if saveToHistory {
-			db, err := history.NewDatabase(checkDBPath)
+			db, err := storage.NewDatabase(checkDBPath)
 			if err == nil {
 				defer db.Close()
 				for _, r := range results {
-					db.SaveCheck(history.CheckRecord{
+					db.SaveCheck(storage.CheckRecord{
 						URL:          r.URL,
 						Status:       r.Status,
 						StatusCode:   r.StatusCode,
@@ -160,9 +160,9 @@ func runSSLCheck(urls []string, client *http.Client) error {
 }
 
 func runWatchMode(urls []string, client *http.Client, healthChecker *monitor.HealthChecker) error {
-	var notifier *webhook.Notifier
+	var notifier *notify.Notifier
 	if checkWebhook != "" {
-		notifier = webhook.NewNotifier(checkWebhook)
+		notifier = notify.NewNotifier(checkWebhook)
 	}
 
 	stopChan := make(chan bool)
@@ -221,11 +221,11 @@ func runWatchMode(urls []string, client *http.Client, healthChecker *monitor.Hea
 			}
 
 			if saveToHistory {
-				db, err := history.NewDatabase(checkDBPath)
+				db, err := storage.NewDatabase(checkDBPath)
 				if err == nil {
 					defer db.Close()
 					for _, result := range healthChecker.GetResults() {
-						db.SaveCheck(history.CheckRecord{
+						db.SaveCheck(storage.CheckRecord{
 							URL:          result.URL,
 							Status:       result.Status,
 							StatusCode:   result.StatusCode,

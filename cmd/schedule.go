@@ -9,8 +9,8 @@ import (
 
 	"github.com/mralaminahamed/sitemon/internal/http"
 	"github.com/mralaminahamed/sitemon/internal/monitor"
+	"github.com/mralaminahamed/sitemon/internal/notify"
 	"github.com/mralaminahamed/sitemon/internal/scheduler"
-	"github.com/mralaminahamed/sitemon/internal/webhook"
 	"github.com/spf13/cobra"
 )
 
@@ -38,9 +38,9 @@ Examples:
 		client := http.NewClient(scheduleTimeout)
 		healthChecker := monitor.NewHealthChecker(client)
 
-		var notifier *webhook.Notifier
+		var notifier *notify.Notifier
 		if scheduleWebhook != "" {
-			notifier = webhook.NewNotifier(scheduleWebhook)
+			notifier = notify.NewNotifier(scheduleWebhook)
 		}
 
 		fmt.Printf("Portman Scheduler\n")

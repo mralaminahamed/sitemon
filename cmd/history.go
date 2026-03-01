@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mralaminahamed/sitemon/internal/history"
+	"github.com/mralaminahamed/sitemon/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +15,7 @@ var historyCmd = &cobra.Command{
 	Long: `View and manage health check history from the database.
 Shows past check results with statistics.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, err := history.NewDatabase(historyDBPath)
+		db, err := storage.NewDatabase(historyDBPath)
 		if err != nil {
 			return fmt.Errorf("failed to open database: %w", err)
 		}
