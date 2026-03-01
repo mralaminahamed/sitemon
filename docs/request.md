@@ -42,19 +42,37 @@ sitemon request [url]
 sitemon request -u https://example.com
 ```
 
-### High RPS load test
+### Quick load test (10K requests)
 
 ```bash
-sitemon request -u https://example.com -w 50 -r 1000 -n 50000
+sitemon request -u https://example.com -w 50 -r 500 -n 10000
 ```
 
-### HEAD method (fastest)
+### Moderate load test (100K requests)
 
 ```bash
-sitemon request -u https://example.com -m HEAD -w 100 -r 5000 -n 100000
+sitemon request -u https://example.com -w 100 -r 1000 -n 100000
 ```
 
-### POST request
+### Heavy load test (1M requests)
+
+```bash
+sitemon request -u https://example.com -w 200 -r 2000 -n 1000000
+```
+
+### Extreme load test (1M with Cloudflare bypass)
+
+```bash
+sitemon request -u https://codecept.io -w 100 -r 1000 -n 1000000 --bypass-cloudflare
+```
+
+### HEAD method (fastest, ideal for millions)
+
+```bash
+sitemon request -u https://example.com -m HEAD -w 200 -r 5000 -n 1000000
+```
+
+### POST request with data
 
 ```bash
 sitemon request -u https://api.example.com/submit -m POST -w 20 -r 200 -n 5000
@@ -77,6 +95,33 @@ sitemon request -u https://example.com -s stats.json
 ```bash
 sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
 ```
+
+### Save million request results
+
+```bash
+sitemon request -u https://example.com -w 200 -r 2000 -n 1000000 -s million_stats.json
+```
+
+## Load Testing Guide
+
+### Safe Thresholds by VPS RAM
+
+| VPS RAM | Max Safe Workers (No Cache) | Max Safe Workers (With Cache) |
+|---------|------------------------------|-------------------------------|
+| 1 GB | 10-15 | 50-100 |
+| 2 GB | 20-30 | 100-200 |
+| 4 GB | 40-60 | 300-500 |
+| 8 GB | 80-120 | 600-1,000 |
+
+### Recommended Configurations
+
+| Request Count | Workers | RPS | Estimated Time |
+|---------------|---------|-----|----------------|
+| 1,000 | 10 | 100 | ~10s |
+| 10,000 | 50 | 500 | ~20s |
+| 100,000 | 100 | 1,000 | ~1.5min |
+| 1,000,000 | 200 | 2,000 | ~8min |
+| 1,000,000 (HEAD) | 200 | 5,000 | ~3min |
 
 ## Output
 
@@ -110,3 +155,5 @@ Latency Stats (ms):
 - Increase **workers** for more concurrent connections
 - Match **rps** to your network bandwidth
 - Monitor target server resources
+- For millions of requests, use `--stats` to save results
+- Use `--bypass-cloudflare` for Cloudflare-protected sites
