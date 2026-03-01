@@ -16,10 +16,21 @@ sitemon request [url]
 | `--workers` | `-w` | 10 | Number of concurrent workers |
 | `--rps` | `-r` | 100 | Requests per second limit |
 | `--count` | `-n` | 1000 | Total number of requests |
+| `--duration` | - | - | Run for duration (e.g., 30s, 5m) |
+| `--ramp-up` | - | - | Ramp-up period (e.g., 10s) |
 | `--timeout` | - | 10s | Request timeout |
 | `--method` | `-m` | GET | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS) |
+| `--body` | - | - | Request body for POST/PUT/PATCH (JSON string) |
+| `--header` | `-H` | - | Custom header (key:value) - can be used multiple times |
+| `--cookie` | - | - | Cookie string (name=value) |
+| `--proxy` | - | - | HTTP proxy URL |
+| `--follow-redirects` | - | false | Follow HTTP redirects |
 | `--json` | `-j` | false | Output in JSON format |
+| `--csv` | - | false | Output in CSV format |
+| `--prometheus` | - | false | Output in Prometheus format |
+| `--junit` | - | false | Output in JUnit XML format |
 | `--stats` | `-s` | - | Save stats to file |
+| `--quiet` | - | false | Suppress progress bar |
 | `--bypass-cloudflare` | - | false | Use browser headers to bypass Cloudflare bot detection |
 
 ## HTTP Methods
@@ -60,46 +71,101 @@ sitemon request -u https://example.com -w 100 -r 1000 -n 100000
 sitemon request -u https://example.com -w 200 -r 2000 -n 1000000
 ```
 
-### Extreme load test (1M with Cloudflare bypass)
+### Duration-based testing
 
 ```bash
-sitemon request -u https://codecept.io -w 100 -r 1000 -n 1000000 --bypass-cloudflare
+# Run for 30 seconds
+sitemon request -u https://example.com -w 50 -r 500 --duration 30s
+
+# Run for 5 minutes
+sitemon request -u https://example.com -w 100 -r 1000 --duration 5m
+
+# Run for 1 hour
+sitemon request -u https://example.com -w 200 -r 2000 --duration 1h
 ```
 
-### HEAD method (fastest, ideal for millions)
+### Ramp-up period
 
 ```bash
-sitemon request -u https://example.com -m HEAD -w 200 -r 5000 -n 1000000
+# Gradually increase RPS from 0 to 1000 over 30 seconds
+sitemon request -u https://example.com -w 50 -r 1000 -n 50000 --ramp-up 30s
 ```
 
-### POST request with data
+### With custom headers
 
 ```bash
-sitemon request -u https://api.example.com/submit -m POST -w 20 -r 200 -n 5000
+# Single header
+sitemon request -u https://api.example.com -H "Authorization: Bearer token"
+
+# Multiple headers
+sitemon request -u https://api.example.com -H "Authorization: Bearer token" -H "X-Custom: value"
 ```
 
-### DELETE request
+### With cookies
 
 ```bash
-sitemon request -u https://api.example.com/resource/123 -m DELETE -w 10 -r 100 -n 1000
+sitemon request -u https://example.com --cookie "session=abc123; user=john"
 ```
 
-### Save stats to file
+### With request body (POST)
 
 ```bash
-sitemon request -u https://example.com -s stats.json
+sitemon request -u https://api.example.com/login -m POST --body '{"username":"admin","password":"secret"}'
 ```
 
-### Bypass Cloudflare
+### Through proxy
+
+```bash
+sitemon request -u https://example.com --proxy http://proxy:8080
+```
+
+### Follow redirects
+
+```bash
+sitemon request -u http://example.com --follow-redirects
+```
+
+### CSV output
+
+```bash
+sitemon request -u https://example.com -n 10000 --csv
+```
+
+### Prometheus metrics output
+
+```bash
+sitemon request -u https://example.com -n 10000 --prometheus
+```
+
+### JUnit XML output (for CI/CD)
+
+```bash
+sitemon request -u https://example.com -n 1000 --junit
+```
+
+### Quiet mode (no progress bar)
+
+```bash
+sitemon request -u https://example.com -n 10000 --quiet
+```
+
+### Cloudflare bypass
 
 ```bash
 sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
 ```
 
-### Save million request results
+### Combined options
 
 ```bash
-sitemon request -u https://example.com -w 200 -r 2000 -n 1000000 -s million_stats.json
+sitemon request -u https://api.example.com/secure \
+  -m POST \
+  --body '{"key":"value"}' \
+  -H "Authorization: Bearer token" \
+  -H "Content-Type: application/json" \
+  -w 50 -r 500 -n 10000 \
+  --duration 1m \
+  --stats results.json
 ```
 
 ## Flood Testing (High RPS)
@@ -155,23 +221,10 @@ sitemon request -u https://api.example.com/submit -m POST -w 100 -r 2000 -n 2000
 
 ```bash
 # Run for 1 hour at 5K RPS (18M requests)
-sitemon request -u https://example.com -w 500 -r 5000 -n 18000000
+sitemon request -u https://example.com -w 500 -r 5000 --duration 1h
 
 # Sustained 10K RPS attack simulation
-sitemon request -u https://example.com -w 1000 -r 10000 -n 3600000
-```
-
-### Custom Headers for Flood Testing
-
-```bash
-# With custom user agent
-sitemon request -u https://example.com -w 200 -r 5000 -n 50000
-
-# With referer
-sitemon request -u https://example.com -w 200 -r 5000 -n 50000
-
-# With authentication
-sitemon request -u https://api.example.com/secure -w 100 -r 1000 -n 10000
+sitemon request -u https://example.com -w 1000 -r 10000 --duration 10m
 ```
 
 ## Load Testing Guide
@@ -197,6 +250,8 @@ sitemon request -u https://api.example.com/secure -w 100 -r 1000 -n 10000
 
 ## Output
 
+### Standard Output
+
 ```
 ======================================
 Target URL:     https://example.com
@@ -210,7 +265,7 @@ Failed:         2
 Duration:       10.234s
 Requests/sec:   97.72
 --------------------------------------
-Latency Stats (ms):
+Latency Stats:
   Min:    11.41ms
   Avg:    18ms
   Max:    53.74ms
@@ -218,7 +273,70 @@ Latency Stats (ms):
   P90:    40.95ms
   P95:    42.70ms
   P99:    53.74ms
+--------------------------------------
+Response Size:
+  Avg:    1250 bytes
+  Min:    800 bytes
+  Max:    5000 bytes
+--------------------------------------
+Status Codes:
+  200: 995
+  301: 3
+  404: 2
 ======================================
+```
+
+### JSON Output
+
+```json
+{
+  "total_requests": 1000,
+  "successful": 998,
+  "failed": 2,
+  "duration": "10.234s",
+  "requests_per_sec": 97.72,
+  "success_rate": 99.8,
+  "avg_latency_ms": "18ms",
+  "min_latency_ms": "11.41ms",
+  "max_latency_ms": "53.74ms",
+  "p50_latency_ms": "14.94ms",
+  "p90_latency_ms": "40.95ms",
+  "p95_latency_ms": "42.70ms",
+  "p99_latency_ms": "53.74ms",
+  "target_url": "https://example.com",
+  "method": "GET",
+  "workers": 10,
+  "rps_limit": 100,
+  "response_size_avg_bytes": 1250,
+  "status_codes": {
+    "200": 995,
+    "301": 3,
+    "404": 2
+  }
+}
+```
+
+### Prometheus Output
+
+```
+# HELP sitemon_total_requests Total number of requests
+# TYPE sitemon_total_requests counter
+sitemon_total_requests 1000
+# HELP sitemon_successful Successful requests
+# TYPE sitemon_successful counter
+sitemon_successful 998
+# HELP sitemon_failed Failed requests
+# TYPE sitemon_failed counter
+sitemon_failed 2
+# HELP sitemon_requests_per_second Requests per second
+# TYPE sitemon_requests_per_second gauge
+sitemon_requests_per_second 97.72
+# HELP sitemon_avg_latency_ms Average latency in milliseconds
+# TYPE sitemon_avg_latency_ms gauge
+sitemon_avg_latency_ms 18.00
+# HELP sitemon_p99_latency_ms P99 latency in milliseconds
+# TYPE sitemon_p99_latency_ms gauge
+sitemon_p99_latency_ms 53.74
 ```
 
 ## Performance Tips
