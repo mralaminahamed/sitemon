@@ -83,6 +83,7 @@ func WithHeaders(headers map[string]string) ClientOption {
 
 func WithCloudflareBypass() ClientOption {
 	ua := getRandomUserAgent()
+	cfCookies := generateFakeCFCookies()
 	return func(c *resty.Client) {
 		c.SetHeader("User-Agent", ua)
 		c.SetHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
@@ -98,7 +99,29 @@ func WithCloudflareBypass() ClientOption {
 		c.SetHeader("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
 		c.SetHeader("Sec-Ch-Ua-Mobile", "?0")
 		c.SetHeader("Sec-Ch-Ua-Platform", `"Windows"`)
+		c.SetHeader("Cache-Control", "max-age=0")
+		for name, value := range cfCookies {
+			c.SetCookie(&http.Cookie{Name: name, Value: value})
+		}
 	}
+}
+
+func generateFakeCFCookies() map[string]string {
+	rand.Seed(time.Now().UnixNano())
+	cookies := make(map[string]string)
+	cookies["cf_clearance"] = generateRandomString(43) + "." + generateRandomString(8)
+	cookies["_cfuvid"] = generateRandomString(22)
+	cookies["__cf_bm"] = generateRandomString(32)
+	return cookies
+}
+
+func generateRandomString(length int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
 }
 
 func NewClient(timeout time.Duration, opts ...ClientOption) *Client {
