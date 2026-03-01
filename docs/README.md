@@ -35,18 +35,40 @@ sitemon dashboard --url https://example.com
 
 ## Load Testing Examples
 
+### Basic
+
 ```bash
-# 10K requests
-sitemon request -u https://example.com -w 50 -r 500 -n 10000
+sitemon request -u https://example.com
+```
 
-# 100K requests  
-sitemon request -u https://example.com -w 100 -r 1000 -n 100000
+### With Custom Headers
 
-# 1 Million requests
+```bash
+sitemon request -u https://api.example.com -H "Authorization: Bearer token"
+```
+
+### Duration Mode
+
+```bash
+sitemon request -u https://example.com -w 50 -r 500 --duration 5m
+```
+
+### Flood Testing (1M requests)
+
+```bash
 sitemon request -u https://example.com -w 200 -r 2000 -n 1000000
+```
 
-# 1 Million requests with Cloudflare bypass
-sitemon request -u https://codecept.io -w 100 -r 1000 -n 1000000 --bypass-cloudflare
+### With Cloudflare Bypass
+
+```bash
+sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
+```
+
+### Prometheus Metrics
+
+```bash
+sitemon request -u https://example.com -n 10000 --prometheus
 ```
 
 ## Guides
