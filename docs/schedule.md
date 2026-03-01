@@ -59,7 +59,7 @@ sitemon schedule --cron "0 9 * * *" -u https://example.com
 ## Output
 
 ```
-Portman Scheduler
+Sitemon Scheduler
 =================
 Schedule: */5 * * * * (every 5 minutes)
 URLs: [https://example.com]

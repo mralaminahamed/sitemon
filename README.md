@@ -18,6 +18,7 @@ Sitemon is a Go-based CLI tool for HTTP request management and website health mo
 - **Detailed Latency Stats** - P50, P90, P95, P99 percentiles
 - **History Database** - SQLite storage for historical data
 - **Content Validation** - Verify response contains specific text
+- **Cloudflare Bypass** - Bypass Cloudflare bot protection with realistic browser headers
 
 ## Installation
 

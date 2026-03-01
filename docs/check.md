@@ -25,6 +25,7 @@ sitemon check [url...]
 | `--check-ssl` | - | false | Check SSL certificate |
 | `--save` | - | false | Save results to history database |
 | `--db` | - | - | Path to history database |
+| `--bypass-cloudflare` | - | false | Use browser headers to bypass Cloudflare bot detection |
 
 ## Examples
 
@@ -69,6 +70,12 @@ sitemon check -u https://example.com --check-ssl
 
 ```bash
 sitemon check -u https://example.com --save
+```
+
+### Bypass Cloudflare
+
+```bash
+sitemon check -u https://example.com --bypass-cloudflare
 ```
 
 ## Output

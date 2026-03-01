@@ -20,6 +20,7 @@ sitemon request [url]
 | `--method` | `-m` | GET | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS) |
 | `--json` | `-j` | false | Output in JSON format |
 | `--stats` | `-s` | - | Save stats to file |
+| `--bypass-cloudflare` | - | false | Use browser headers to bypass Cloudflare bot detection |
 
 ## HTTP Methods
 
@@ -69,6 +70,12 @@ sitemon request -u https://api.example.com/resource/123 -m DELETE -w 10 -r 100 -
 
 ```bash
 sitemon request -u https://example.com -s stats.json
+```
+
+### Bypass Cloudflare
+
+```bash
+sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
 ```
 
 ## Output
