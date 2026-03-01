@@ -57,6 +57,9 @@ Reports detailed latency statistics including p50, p90, p95, and p99 percentiles
 		}
 
 		client := http.NewFastClient(requestTimeout)
+		if bypassCloudflare {
+			client = http.NewFastClient(requestTimeout, http.WithCloudflareBypass())
+		}
 		ctx := context.Background()
 
 		limiter := rate.NewLimiter(rate.Limit(rps), rps)
@@ -241,4 +244,5 @@ func init() {
 	requestCmd.Flags().StringVarP(&requestMethod, "method", "m", "GET", "HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS)")
 	requestCmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 	requestCmd.Flags().StringVarP(&statsOutput, "stats", "s", "", "save stats to file")
+	requestCmd.Flags().BoolVar(&bypassCloudflare, "bypass-cloudflare", false, "use browser headers to bypass Cloudflare bot detection")
 }

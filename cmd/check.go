@@ -43,6 +43,9 @@ Supports multiple URLs for batch checking.`,
 		}
 
 		client := http.NewClient(checkTimeout)
+		if bypassCloudflare {
+			client = http.NewClient(checkTimeout, http.WithCloudflareBypass())
+		}
 		healthChecker := monitor.NewHealthChecker(client)
 
 		if sslCheck {
@@ -251,6 +254,7 @@ var (
 	sslCheck         bool
 	saveToHistory    bool
 	checkDBPath      string
+	bypassCloudflare bool
 )
 
 func init() {
@@ -269,4 +273,5 @@ func init() {
 	checkCmd.Flags().BoolVar(&sslCheck, "check-ssl", false, "check SSL certificate")
 	checkCmd.Flags().BoolVar(&saveToHistory, "save", false, "save results to history database")
 	checkCmd.Flags().StringVar(&checkDBPath, "db", "", "path to history database")
+	checkCmd.Flags().BoolVar(&bypassCloudflare, "bypass-cloudflare", false, "use browser headers to bypass Cloudflare bot detection")
 }
