@@ -1,38 +1,24 @@
-import { CheckForm } from "./components/CheckForm";
-import { LatencyChart } from "./components/LatencyChart";
-import { StatsTiles } from "./components/StatsTiles";
-import { StatusGrid } from "./components/StatusGrid";
-import { useStatusStream } from "./useStatusStream";
-import { useUI } from "./store";
+import { Outlet } from "react-router-dom";
+import { Sidebar } from "./components/Sidebar";
+import { TopBar } from "./components/TopBar";
+import { Toaster } from "./components/Toaster";
+import { CommandPalette } from "./components/CommandPalette";
+import { useStatusStream } from "./lib/useStatusStream";
 
 export function App() {
-  const selectedUrl = useUI((s) => s.selectedUrl);
   useStatusStream();
-
   return (
-    <div className="app">
-      <header className="header">
-        <h1>Sitemon</h1>
-        <span className="muted">Site health · auto-refresh 5s</span>
-      </header>
-
-      <main>
-        <section>
-          <div className="section__head">
-            <h2>Status</h2>
-            <CheckForm />
-          </div>
-          <StatusGrid />
-        </section>
-
-        {selectedUrl && (
-          <section>
-            <h2 className="detail__title">{selectedUrl}</h2>
-            <StatsTiles url={selectedUrl} />
-            <LatencyChart url={selectedUrl} />
-          </section>
-        )}
-      </main>
+    <div className="flex h-full">
+      <Sidebar />
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="grid-bg pointer-events-none absolute inset-0 h-64" />
+        <TopBar />
+        <main className="relative flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+      <Toaster />
+      <CommandPalette />
     </div>
   );
 }
