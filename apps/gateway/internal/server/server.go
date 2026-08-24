@@ -50,17 +50,20 @@ func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...h
 	e.GET("/health", h.Health)
 	e.GET("/ready", echo.WrapHandler(health.ReadyHandler("gateway", checks...)))
 	e.GET("/metrics", metrics.Handler())
-	if hub != nil {
-		e.GET("/ws", hub.Handler())
-	}
 
 	api := e.Group("/api")
-	// Require an API key on /api when GATEWAY_API_KEY is set. Unset = open
-	// (dev); a warning is logged so it is not silently unauthenticated in prod.
+	// Require an API key on /api (and /ws) when GATEWAY_API_KEY is set. Unset =
+	// open (dev); a warning is logged so it is not silently unauthenticated.
 	if key := os.Getenv("GATEWAY_API_KEY"); key != "" {
 		api.Use(auth.APIKey(key))
+		if hub != nil {
+			e.GET("/ws", hub.Handler(), auth.APIKey(key))
+		}
 	} else {
-		logger.Log.Warn().Msg("gateway: GATEWAY_API_KEY unset — /api is unauthenticated")
+		logger.Log.Warn().Msg("gateway: GATEWAY_API_KEY unset — /api and /ws are unauthenticated")
+		if hub != nil {
+			e.GET("/ws", hub.Handler())
+		}
 	}
 	api.GET("/status", h.Status)
 	api.GET("/history", h.History)
