@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/auth"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/handler"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/metrics"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
@@ -39,6 +40,13 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 	e.GET("/metrics", metrics.Handler())
 
 	api := e.Group("/api")
+	// Require an API key on /api when GATEWAY_API_KEY is set. Unset = open
+	// (dev); a warning is logged so it is not silently unauthenticated in prod.
+	if key := os.Getenv("GATEWAY_API_KEY"); key != "" {
+		api.Use(auth.APIKey(key))
+	} else {
+		logger.Log.Warn().Msg("gateway: GATEWAY_API_KEY unset — /api is unauthenticated")
+	}
 	api.GET("/status", h.Status)
 	api.GET("/history", h.History)
 	api.GET("/stats", h.Stats)

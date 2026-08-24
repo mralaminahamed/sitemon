@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/signal"
 	"sync"
@@ -96,7 +97,7 @@ func main() {
 	stop, err := b.Consume(context.Background(), "notifier", bus.SubjectCheckResult, func(data []byte) error {
 		var result models.HealthResult
 		if err := json.Unmarshal(data, &result); err != nil {
-			return err
+			return errors.Join(bus.ErrDrop, err)
 		}
 		alertType := decide(context.Background(), result.URL, result.Status)
 		if alertType == "" {
