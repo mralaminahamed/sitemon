@@ -13,13 +13,13 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/handler"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
-	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 )
 
 // New builds a configured Echo instance with middleware and routes.
-func New(svc *service.Service, cache *statuscache.Cache) *echo.Echo {
+func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -30,13 +30,15 @@ func New(svc *service.Service, cache *statuscache.Cache) *echo.Echo {
 	// Open CORS for the React app in dev; tighten per-origin in Phase 7.
 	e.Use(middleware.CORS())
 
-	h := handler.New(svc, cache)
+	h := handler.New(svc, rm)
 
 	e.GET("/", h.Root)
 	e.GET("/health", h.Health)
 
 	api := e.Group("/api")
 	api.GET("/status", h.Status)
+	api.GET("/history", h.History)
+	api.GET("/stats", h.Stats)
 	api.POST("/checks", h.Checks)
 	api.GET("/ssl", h.SSL)
 	api.POST("/loadtest", h.LoadTest)
@@ -46,8 +48,8 @@ func New(svc *service.Service, cache *statuscache.Cache) *echo.Echo {
 
 // Run starts the server and blocks until SIGINT/SIGTERM, then shuts down
 // gracefully.
-func Run(svc *service.Service, cache *statuscache.Cache, addr string) error {
-	e := New(svc, cache)
+func Run(svc *service.Service, rm *readmodel.ReadModel, addr string) error {
+	e := New(svc, rm)
 
 	go func() {
 		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -4,22 +4,23 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/dto"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
-	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 	"github.com/mralaminahamed/sitemon/packages/shared/loadtest"
 )
 
 type Handler struct {
-	svc   *service.Service
-	cache *statuscache.Cache
+	svc *service.Service
+	rm  *readmodel.ReadModel
 }
 
-func New(svc *service.Service, cache *statuscache.Cache) *Handler {
-	return &Handler{svc: svc, cache: cache}
+func New(svc *service.Service, rm *readmodel.ReadModel) *Handler {
+	return &Handler{svc: svc, rm: rm}
 }
 
 // Health is the liveness probe. Kept at the root path for compose/k8s.
@@ -35,6 +36,8 @@ func (h *Handler) Root(c echo.Context) error {
 		"endpoints": []string{
 			"GET  /health",
 			"GET  /api/status",
+			"GET  /api/history?url=&limit=",
+			"GET  /api/stats?url=",
 			"POST /api/checks",
 			"GET  /api/ssl?url=",
 			"POST /api/loadtest",
@@ -42,12 +45,32 @@ func (h *Handler) Root(c echo.Context) error {
 	})
 }
 
-// Status returns the latest health result per URL from the event-driven cache.
+// Status returns the latest health result per URL.
 func (h *Handler) Status(c echo.Context) error {
-	if h.cache == nil {
-		return c.JSON(http.StatusOK, echo.Map{"results": []any{}})
+	results, err := h.rm.Status(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, echo.Map{"results": h.cache.Snapshot()})
+	return c.JSON(http.StatusOK, echo.Map{"results": results})
+}
+
+// History returns stored check history, optionally filtered by ?url=.
+func (h *Handler) History(c echo.Context) error {
+	limit, _ := strconv.ParseInt(c.QueryParam("limit"), 10, 64)
+	results, err := h.rm.History(c.Request().Context(), c.QueryParam("url"), limit)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"results": results})
+}
+
+// Stats returns aggregate uptime/latency for ?url=.
+func (h *Handler) Stats(c echo.Context) error {
+	st, err := h.rm.Stats(c.Request().Context(), c.QueryParam("url"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, st)
 }
 
 // Checks runs health checks for the requested URLs.
