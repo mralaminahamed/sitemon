@@ -3,6 +3,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
@@ -51,7 +52,15 @@ func (s *CheckStore) Ping(ctx context.Context) error {
 func (s *CheckStore) Save(ctx context.Context, r models.HealthResult) error {
 	ctx, cancel := context.WithTimeout(ctx, opTimeout)
 	defer cancel()
-	_, err := s.col.InsertOne(ctx, r)
+	// Deterministic _id makes writes idempotent: a JetStream redelivery of the
+	// same result (at-least-once) upserts the same document instead of adding a
+	// duplicate history row.
+	id := fmt.Sprintf("%s|%d", r.URL, r.Timestamp.UnixNano())
+	_, err := s.col.UpdateOne(ctx,
+		bson.M{"_id": id},
+		bson.M{"$setOnInsert": r},
+		options.Update().SetUpsert(true),
+	)
 	return err
 }
 
