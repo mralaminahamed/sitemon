@@ -1,157 +1,209 @@
-# Sitemon
+<div align="center">
 
-Site Health Monitor & HTTP Request Manager
+# Sitemon — Developer Guide
 
-## Overview
+**Watch your sites from one place — health checks and load tests that fan out across Go microservices over NATS, land in MongoDB and Redis, surface on a React dashboard, and turn into plain-English incident summaries written by Claude.**
 
-Sitemon is a Go-based CLI tool for HTTP request management and website health monitoring. It works great for monitoring portfolios, personal sites, and any web services.
+[![Go](https://img.shields.io/badge/Go-1.27-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
+[![NATS](https://img.shields.io/badge/NATS-JetStream-27AAE1.svg?logo=natsdotio&logoColor=white)](https://nats.io/)
+[![Anthropic](https://img.shields.io/badge/Claude-opus--5-D4A27F.svg?logo=anthropic&logoColor=white)](https://docs.anthropic.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
+
+## What it is
+
+Uptime monitoring is rarely one process. A scheduler decides *when* to check, a
+worker does the checking, something stores the history, something else decides an
+alert is worth sending, and a person wants to see all of it on a screen. Sitemon
+models that split as it really is: independent Go services that talk over a
+message bus, each doing one job and surviving the others being restarted.
+
+A `scheduler` emits check jobs on a cron cadence. A `checker` picks them up,
+runs the HTTP or TLS check, and publishes the result. The `gateway` caches the
+latest status for the dashboard and answers ad-hoc checks and load tests; the
+`notifier` watches the same result stream and sends a webhook only when a site
+actually crosses from up to down, or back. History accumulates in MongoDB, and
+an `ai` service reads it back to compute anomalies and — when a key is present —
+ask Claude for a two-sentence incident summary with a probable cause. The whole
+thing still ships the original single-binary CLI, and the gateway still runs
+standalone with no bus at all.
+
+## Architecture
+
+```mermaid
+flowchart TD
+  web["React + TS dashboard"] -->|REST /api| gw["gateway (Echo)"]
+  gw -->|req-reply| checker
+  gw -->|req-reply| ai
+  gw -->|/metrics| prom["Prometheus"]
+  sched["scheduler"] -->|check.job| nats(("NATS JetStream"))
+  nats -->|check.job| checker
+  checker -->|check.result| nats
+  nats -->|check.result| gw
+  nats -->|check.result| notifier
+  notifier -->|webhook| slack["Slack / Discord / Telegram"]
+  gw --> redis[("Redis")]
+  gw --> mongo[("MongoDB")]
+  ai --> mongo
+  ai -.->|incident summary| claude["Claude API"]
+  mcp["MCP server"] -.->|tools| agents["MCP clients"]
+```
+
+```
+apps/
+├── gateway/    Echo REST + WebSocket, /metrics — routes to services, serves /api/*
+├── checker/    HTTP/SSL/load engine — answers RPC and consumes check.job
+├── scheduler/  cron → check.job
+├── notifier/   check.result → webhooks on up↔down transitions
+├── ai/         anomaly analysis + Claude incident summaries (ai.analyze RPC)
+│   └── mcp/    stdio MCP server: check_url, ssl_check, analyze
+├── cli/        the original Cobra CLI (check, ssl, request, dashboard, schedule)
+└── web/        Vite + React 19 + TypeScript dashboard
+
+packages/shared/   http · ssl · monitor · notify · scheduler · loadtest
+                   store (Mongo) · cache (Redis) · bus (NATS) · models
+                   health · logger · config · validation · tui
+
+infra/             docker-compose(.prod).yml · caddy · mongo · prometheus
+                   grafana · k8s
+```
+
+Single Go module; each `apps/<service>/cmd` compiles to its own binary.
 
 ## Features
 
-- **Health Checks** - Monitor URL availability and response times
-- **Watch Mode** - Continuous health monitoring at specified intervals
-- **SSL Certificate Monitoring** - Check expiry, issuer, protocol details
-- **Scheduled Checks** - Cron-based automated health monitoring
-- **Real-time Dashboard** - Interactive TUI for live monitoring
-- **Webhook Alerts** - Slack, Discord, Telegram notifications
-- **High-Volume Request Testing** - Load testing with configurable workers and RPS limits
-- **Detailed Latency Stats** - P50, P90, P95, P99 percentiles
-- **History Database** - SQLite storage for historical data
-- **Content Validation** - Verify response contains specific text
-- **Cloudflare Bypass** - Bypass Cloudflare bot protection
-- **Duration-based Testing** - Run load tests for specific duration
-- **Ramp-up Support** - Gradually increase RPS during test
-- **Multiple Output Formats** - JSON, CSV, Prometheus, JUnit XML
+**Monitoring**
+- Health checks with UP / WARNING / REDIRECT / DOWN status, response code and latency
+- **SSL inspection** — issuer, validity window, days remaining, protocol
+- **Load testing** — workers, RPS limit, duration or count, ramp-up, p50/p90/p95/p99
+- **Watch and schedule** modes, cron-driven, with Cloudflare-bypass headers
+- History in MongoDB; latest status and dedup state in Redis, shared across replicas
+
+**Distributed by design**
+- NATS **JetStream** events (`check.job`, `check.result`, `alert.raised`) and core
+  **request-reply** RPC (`checker.run`, `checker.loadtest`, `ai.analyze`)
+- Services fan out and load-balance on durable queue groups; any one can restart
+- Gateway degrades to **in-process** mode when no bus is present — still works standalone
+
+**AI**
+- Statistical anomaly detection — latency spikes, elevated error rate, intermittent downtime
+- **Claude incident summaries** via the Anthropic Go SDK (`claude-opus-5`), gated on
+  `ANTHROPIC_API_KEY` and a clean no-op without one
+- **MCP server** exposing `check_url`, `ssl_check`, and `analyze` to any MCP client
+
+**Dashboard**
+- React 19 + TypeScript, live status grid (TanStack Query), ad-hoc check form
+- Per-URL stats tiles and a Recharts latency chart; theme-aware light/dark
+
+**Alerts**
+- Slack, Discord, Telegram, or a generic webhook — provider detected from the URL
+- Fired only on a real transition, with recovery notices
+
+**Operations**
+- Prometheus metrics at `/metrics`; a Grafana profile in the dev stack
+- Multi-stage Docker images published to GHCR; Kubernetes manifests; Caddy in prod
+
+## Requirements
+
+- Go 1.27+
+- Docker (for the local stack: MongoDB, Redis, NATS)
+- Node 24 + pnpm (only to develop the web app)
+- An `ANTHROPIC_API_KEY` is optional — the AI service runs without one
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/mralaminahamed/sitemon.git
 cd sitemon
-
-# Install dependencies
-go mod tidy
-
-# Build the CLI (now lives under apps/cli in the monorepo)
-go build -o sitemon ./apps/cli
-
-# Build every service binary into ./bin
-make build
+cp .env.example .env
+make up
 ```
 
-> **Monorepo:** sitemon is being grown into a full-stack, microservices,
-> AI-native platform. See [ARCHITECTURE.md](ARCHITECTURE.md) for the target
-> system and [PLAN.md](PLAN.md) for the phased build. Local dev stack:
-> `make up` (mongo + redis + nats + gateway).
+`make up` brings up MongoDB, Redis, NATS and every service. Then:
 
-## Quick Start
+- Dashboard — http://localhost:5173
+- API — http://localhost:8080
+- Metrics — http://localhost:8080/metrics
+- Observability (Prometheus + Grafana) — `make obs-up`
 
-### Health Check
+Without Docker:
 
 ```bash
-sitemon check --url https://example.com
+make build                                   # ./bin/<service>
+go run ./apps/cli check -u https://example.com
 ```
 
-### SSL Certificate Check
+## Development
 
 ```bash
-sitemon ssl --url https://example.com
+make build         # build every service binary
+make test          # go test ./...
+make test-race     # go test -race ./...
+make lint          # go vet + gofmt check
+make obs-up        # prometheus + grafana
+make logs s=gateway
 ```
 
-### Watch Mode with Alerts
+Full gate before committing:
 
 ```bash
-sitemon check --url https://example.com --watch --webhook https://hooks.slack.com/xxx
+gofmt -l apps packages && go vet ./... && go build ./... && CGO_ENABLED=1 go test -race ./...
 ```
 
-### Load Testing
+CI (`.github/workflows/ci.yml`) runs the same gate on every push and PR;
+`.github/workflows/images.yml` builds and pushes service images to GHCR on
+`trunk` and version tags.
 
-```bash
-sitemon request --url https://example.com --workers 100 --rps 500 --count 10000
+### API
+
+Namespace `/api`. Full contract in [`apps/gateway/openapi.yaml`](apps/gateway/openapi.yaml).
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/health` | Liveness |
+| GET | `/api/status` | Latest result per URL *(Redis)* |
+| GET | `/api/history?url=&limit=` | Stored history *(Mongo)* |
+| GET | `/api/stats?url=` | Uptime + latency aggregate |
+| GET | `/api/analyze?url=` | AI incident analysis — anomalies and summary |
+| POST | `/api/checks` | Ad-hoc health check |
+| GET | `/api/ssl?url=` | TLS certificate details |
+| POST | `/api/loadtest` | HTTP load test |
+| GET | `/metrics` | Prometheus exposition |
+
+### Event bus
+
+| Subject | Producer | Consumer |
+|---------|----------|----------|
+| `check.job` | scheduler | checker |
+| `check.result` | checker | gateway, notifier |
+| `alert.raised` | notifier | audit |
+| `checker.run` · `checker.loadtest` | gateway | checker *(req-reply)* |
+| `ai.analyze` | gateway | ai *(req-reply)* |
+
+## Deploy
+
+- **Local dev** — `make up` (`infra/docker-compose.yml`)
+- **Production** — `docker compose -f infra/docker-compose.prod.yml up -d` (GHCR images behind Caddy)
+- **Kubernetes** — `kubectl apply -f infra/k8s/sitemon.yaml`
+
+## Contributing
+
+Branch from `trunk`, keep the full gate green, and open a pull request.
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(scope): description
 ```
 
-### Duration-based Load Testing
+Types `feat` `fix` `docs` `refactor` `perf` `test` `build` `ci` `chore` ·
+scopes `gateway` `checker` `scheduler` `notifier` `ai` `web` `cli` `infra`.
 
-```bash
-sitemon request --url https://example.com --workers 50 --rps 500 --duration 5m
-```
-
-### Dashboard
-
-```bash
-sitemon dashboard --url https://example.com
-```
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| [check](docs/check.md) | Check health of URLs with optional watch mode |
-| [ssl](docs/ssl.md) | Check SSL certificate details |
-| [schedule](docs/schedule.md) | Run checks on cron schedule |
-| [dashboard](docs/dashboard.md) | Interactive TUI dashboard |
-| [history](docs/history.md) | View check history from SQLite |
-| [request](docs/request.md) | High-volume load testing |
-| [report](docs/report.md) | Generate JSON reports |
-
-## Load Testing Examples
-
-### Basic
-
-```bash
-sitemon request -u https://example.com
-```
-
-### With Custom Headers
-
-```bash
-sitemon request -u https://api.example.com -H "Authorization: Bearer token"
-```
-
-### Duration Mode
-
-```bash
-sitemon request -u https://example.com -w 50 -r 500 --duration 5m
-```
-
-### Flood Testing (1M requests)
-
-```bash
-sitemon request -u https://example.com -w 200 -r 2000 -n 1000000
-```
-
-### With Cloudflare Bypass
-
-```bash
-sitemon request -u https://codecept.io -w 10 -r 100 --bypass-cloudflare
-```
-
-### Prometheus Metrics
-
-```bash
-sitemon request -u https://example.com -n 10000 --prometheus
-```
-
-## Documentation
-
-For detailed documentation, see the [docs](docs/) directory:
-
-- [Check Command](docs/check.md)
-- [SSL Command](docs/ssl.md)
-- [Schedule Command](docs/schedule.md)
-- [Dashboard Command](docs/dashboard.md)
-- [History Command](docs/history.md)
-- [Request Command](docs/request.md)
-- [Report Command](docs/report.md)
-- [Configuration](docs/configuration.md)
-
-## Configuration
-
-Configuration can be set via `config.yaml`, `.env`, or environment variables.
-
-See [Configuration](docs/configuration.md) for details.
+Merge with a merge commit (not squash) so scoped commits stay in history.
+Conventions in full: [`AGENTS.md`](AGENTS.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
