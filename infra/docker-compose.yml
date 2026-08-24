@@ -1,0 +1,170 @@
+# ==============================================================================
+# Sitemon Platform — Local Development Stack
+# ------------------------------------------------------------------------------
+# Author : Al Amin Ahamed
+# File   : infra/docker-compose.yml
+# Purpose: Single-command local development environment.
+#          Up   : docker compose -f infra/docker-compose.yml up -d
+#          Down : docker compose -f infra/docker-compose.yml down -v
+#
+# Phase 0: backing stores (mongo/redis/nats) + the gateway stub wired in so the
+# stack runs end to end. Other services (checker/scheduler/notifier/ai) are
+# defined and commented; uncomment as each phase lands. See PLAN.md.
+# ==============================================================================
+
+name: sitemon
+
+# ------------------------------------------------------------------------------
+# Shared base for every Go service — keeps declarations DRY.
+# ------------------------------------------------------------------------------
+x-go-svc: &go-svc
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: dev
+  env_file:
+    - ../.env
+  environment:
+    # Docker-internal hostnames override any localhost URLs from .env.
+    MONGO_URI: mongodb://sitemon:sitemon@mongo:27017/sitemon?authSource=admin
+    REDIS_URL: redis://redis:6379/0
+    NATS_URL: nats://nats:4222
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    - ..:/src:cached          # live reload on host edits (air)
+    - go-build:/root/.cache/go-build
+    - go-mod:/go/pkg/mod
+  depends_on:
+    mongo:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    nats:
+      condition: service_healthy
+  restart: unless-stopped
+  networks:
+    - sitemon-net
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # MongoDB 7 — check history / time-series results (Phase 3 consumer).
+  # ----------------------------------------------------------------------------
+  mongo:
+    image: mongo:7
+    container_name: sitemon-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-sitemon}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-sitemon}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-sitemon}
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    ports:
+      - "127.0.0.1:27099:27017"   # localhost only; offset avoids host mongo clash
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sitemon-net
+
+  # ----------------------------------------------------------------------------
+  # Redis 7 — latest-status cache, notifier dedup state, distributed rate limit.
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: sitemon-redis
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6399:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sitemon-net
+
+  # ----------------------------------------------------------------------------
+  # NATS 2 (JetStream) — event bus: check.job / check.result / alert.raised.
+  # ----------------------------------------------------------------------------
+  nats:
+    image: nats:2-alpine
+    container_name: sitemon-nats
+    command: ["-js", "-m", "8222"]
+    volumes:
+      - nats-data:/data
+    ports:
+      - "127.0.0.1:4299:4222"     # client
+      - "127.0.0.1:8299:8222"     # monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sitemon-net
+
+  # ----------------------------------------------------------------------------
+  # Gateway — REST/WS entrypoint. Phase 0: health stub on :8080.
+  # ----------------------------------------------------------------------------
+  gateway:
+    <<: *go-svc
+    container_name: sitemon-gateway
+    command: ["go", "run", "./apps/gateway/cmd"]
+    environment:
+      PORT: "8080"
+      MONGO_URI: mongodb://sitemon:sitemon@mongo:27017/sitemon?authSource=admin
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+    ports:
+      - "0.0.0.0:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # --- Uncomment as each phase lands (see PLAN.md) --------------------------
+  # checker:
+  #   <<: *go-svc
+  #   container_name: sitemon-checker
+  #   command: ["go", "run", "./apps/checker/cmd"]
+  #   environment: { PORT: "8081" }
+  #
+  # scheduler:
+  #   <<: *go-svc
+  #   container_name: sitemon-scheduler
+  #   command: ["go", "run", "./apps/scheduler/cmd"]
+  #   environment: { PORT: "8082" }
+  #
+  # notifier:
+  #   <<: *go-svc
+  #   container_name: sitemon-notifier
+  #   command: ["go", "run", "./apps/notifier/cmd"]
+  #   environment: { PORT: "8083" }
+  #
+  # ai:
+  #   <<: *go-svc
+  #   container_name: sitemon-ai
+  #   command: ["go", "run", "./apps/ai/cmd"]
+  #   environment: { PORT: "8090" }
+
+volumes:
+  mongo-data:
+  redis-data:
+  nats-data:
+  go-build:
+  go-mod:
+
+networks:
+  sitemon-net:
+    driver: bridge
