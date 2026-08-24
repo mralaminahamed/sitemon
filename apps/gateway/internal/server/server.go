@@ -18,12 +18,13 @@ import (
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/metrics"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/ws"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 )
 
 // New builds a configured Echo instance with middleware and routes.
-func New(svc *service.Service, rm *readmodel.ReadModel, checks ...health.Check) *echo.Echo {
+func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...health.Check) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -49,6 +50,9 @@ func New(svc *service.Service, rm *readmodel.ReadModel, checks ...health.Check) 
 	e.GET("/health", h.Health)
 	e.GET("/ready", echo.WrapHandler(health.ReadyHandler("gateway", checks...)))
 	e.GET("/metrics", metrics.Handler())
+	if hub != nil {
+		e.GET("/ws", hub.Handler())
+	}
 
 	api := e.Group("/api")
 	// Require an API key on /api when GATEWAY_API_KEY is set. Unset = open
@@ -71,8 +75,8 @@ func New(svc *service.Service, rm *readmodel.ReadModel, checks ...health.Check) 
 
 // Run starts the server and blocks until SIGINT/SIGTERM, then shuts down
 // gracefully.
-func Run(svc *service.Service, rm *readmodel.ReadModel, addr string, checks ...health.Check) error {
-	e := New(svc, rm, checks...)
+func Run(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, addr string, checks ...health.Check) error {
+	e := New(svc, rm, hub, checks...)
 
 	go func() {
 		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
