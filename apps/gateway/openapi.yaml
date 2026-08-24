@@ -119,7 +119,7 @@ components:
         url: { type: string }
         status: { type: string, enum: [UP, WARNING, REDIRECT, DOWN] }
         status_code: { type: integer }
-        response_time_ms: { type: integer, description: nanoseconds (time.Duration) }
+        response_time_ms: { type: integer, description: milliseconds }
         timestamp: { type: string, format: date-time }
         error: { type: string }
     CertificateInfo:

@@ -23,8 +23,4 @@ export const api = {
     req<Results>("/checks", { method: "POST", body: JSON.stringify({ urls }) }),
 };
 
-export function nsToMs(ns: number): number {
-  return Math.round(ns / 1e6);
-}
-
 export type { HealthResult, Stats };

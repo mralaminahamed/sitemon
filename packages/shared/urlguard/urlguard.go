@@ -37,7 +37,14 @@ func Check(raw string) error {
 }
 
 func parse(raw string) (*url.URL, error) {
-	u, err := url.Parse(strings.TrimSpace(raw))
+	raw = strings.TrimSpace(raw)
+	// A bare host (no scheme) defaults to https, matching how the services
+	// normalize before fetching. A URL that already has a scheme is left alone
+	// so a non-http scheme is still rejected below.
+	if raw != "" && !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url: %w", err)
 	}

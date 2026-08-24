@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/dto"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/server"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
@@ -51,7 +52,7 @@ func main() {
 
 	hub := ws.NewHub(func() []byte {
 		results, _ := rm.Status(context.Background())
-		b, _ := json.Marshal(map[string]any{"type": "snapshot", "results": results})
+		b, _ := json.Marshal(map[string]any{"type": "snapshot", "results": dto.FromHealthResults(results)})
 		return b
 	})
 
@@ -99,7 +100,7 @@ func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel, hub *ws.Hub) {
 			return errors.Join(bus.ErrDrop, err)
 		}
 		rm.PutResult(context.Background(), r)
-		if msg, err := json.Marshal(map[string]any{"type": "result", "result": r}); err == nil {
+		if msg, err := json.Marshal(map[string]any{"type": "result", "result": dto.FromHealthResult(r)}); err == nil {
 			hub.Broadcast(msg)
 		}
 		return nil

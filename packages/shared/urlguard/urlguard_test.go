@@ -43,3 +43,12 @@ func TestAllowPrivateBypass(t *testing.T) {
 		t.Error("bypass should still reject bad scheme")
 	}
 }
+
+func TestCheckBareHost(t *testing.T) {
+	if err := Check("8.8.8.8"); err != nil {
+		t.Errorf("bare public host: %v, want nil", err)
+	}
+	if err := Check("127.0.0.1"); err == nil {
+		t.Error("bare loopback should be blocked")
+	}
+}

@@ -62,7 +62,7 @@ func (h *Handler) Status(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, echo.Map{"results": results})
+	return c.JSON(http.StatusOK, echo.Map{"results": dto.FromHealthResults(results)})
 }
 
 // History returns stored check history, optionally filtered by ?url=.
@@ -72,7 +72,7 @@ func (h *Handler) History(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, echo.Map{"results": results})
+	return c.JSON(http.StatusOK, echo.Map{"results": dto.FromHealthResults(results)})
 }
 
 // Analyze returns an AI incident analysis for ?url=.
@@ -118,7 +118,7 @@ func (h *Handler) Checks(c echo.Context) error {
 
 	timeout := msOr(req.TimeoutMs, 10*time.Second)
 	results := h.svc.CheckURLs(req.URLs, timeout, req.BypassCloudflare)
-	return c.JSON(http.StatusOK, echo.Map{"results": results})
+	return c.JSON(http.StatusOK, echo.Map{"results": dto.FromHealthResults(results)})
 }
 
 // SSL returns certificate details for ?url=.
@@ -169,7 +169,7 @@ func (h *Handler) LoadTest(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, stats)
+	return c.JSON(http.StatusOK, dto.FromRequestStats(stats))
 }
 
 func badRequest(c echo.Context, msg string) error {
