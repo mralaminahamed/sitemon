@@ -2,10 +2,12 @@ import { CheckForm } from "./components/CheckForm";
 import { LatencyChart } from "./components/LatencyChart";
 import { StatsTiles } from "./components/StatsTiles";
 import { StatusGrid } from "./components/StatusGrid";
+import { useStatusStream } from "./useStatusStream";
 import { useUI } from "./store";
 
 export function App() {
   const selectedUrl = useUI((s) => s.selectedUrl);
+  useStatusStream();
 
   return (
     <div className="app">
