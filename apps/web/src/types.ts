@@ -4,7 +4,7 @@ export interface HealthResult {
   url: string;
   status: Status;
   status_code: number;
-  response_time_ms: number; // nanoseconds (Go time.Duration)
+  response_time_ms: number; // milliseconds
   timestamp: string;
   error?: string;
 }

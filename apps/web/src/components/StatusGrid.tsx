@@ -1,4 +1,4 @@
-import { nsToMs } from "../api";
+
 import { useStatus } from "../hooks";
 import { useUI } from "../store";
 import { StatusBadge } from "./StatusBadge";
@@ -30,7 +30,7 @@ export function StatusGrid() {
             {r.url}
           </div>
           <div className="card__meta">
-            <span>{nsToMs(r.response_time_ms)} ms</span>
+            <span>{r.response_time_ms} ms</span>
             <span className="muted">
               {new Date(r.timestamp).toLocaleTimeString()}
             </span>

@@ -6,7 +6,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { nsToMs } from "../api";
+
 import { useHistory } from "../hooks";
 
 export function LatencyChart({ url }: { url: string }) {
@@ -14,7 +14,7 @@ export function LatencyChart({ url }: { url: string }) {
   const points = (data?.results ?? [])
     .map((r) => ({
       t: new Date(r.timestamp).toLocaleTimeString(),
-      ms: nsToMs(r.response_time_ms),
+      ms: r.response_time_ms,
     }))
     .reverse();
 
