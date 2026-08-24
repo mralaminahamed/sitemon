@@ -129,10 +129,14 @@ func main() {
 	}
 	defer stop()
 
+	checks := []health.Check{{Name: "nats", Ping: b.Ping}}
+	if redis != nil {
+		checks = append(checks, health.Check{Name: "redis", Ping: redis.Ping})
+	}
 	go func() {
 		addr := health.AddrFromEnv(":8083")
 		logger.Log.Info().Str("addr", addr).Msg("notifier health listening")
-		_ = health.Serve("notifier", addr)
+		_ = health.Serve("notifier", addr, checks...)
 	}()
 
 	logger.Log.Info().Msg("notifier ready (consuming check.result)")

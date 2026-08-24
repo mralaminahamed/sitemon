@@ -1,30 +1,69 @@
-// Package health provides a minimal HTTP health endpoint shared by every
-// service. Phase 0 services are otherwise stubs; this gives Docker
-// healthchecks something real to hit and a uniform shape to grow on.
+// Package health serves liveness (/health) and readiness (/ready) endpoints.
+// Liveness is always ok; readiness runs the given dependency checks so an
+// orchestrator does not route traffic to a pod that cannot reach its deps.
 package health
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
 )
 
-// Serve starts an HTTP server exposing GET /health for the named service and
-// blocks until it errors.
-func Serve(service, addr string) error {
+// Check is a named dependency probe.
+type Check struct {
+	Name string
+	Ping func(context.Context) error
+}
+
+func Serve(service, addr string, checks ...Check) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"status":  "ok",
-			"service": service,
-		})
-	})
+	mux.HandleFunc("/health", LivenessHandler(service))
+	mux.HandleFunc("/ready", ReadyHandler(service, checks...))
 	return http.ListenAndServe(addr, mux)
 }
 
-// AddrFromEnv returns ":$PORT" when PORT is set, otherwise fallback. Lets
-// compose/k8s override the listen port without a rebuild.
+// LivenessHandler always reports ok — the process is running.
+func LivenessHandler(service string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "service": service})
+	}
+}
+
+// ReadyHandler runs the dependency checks and returns 503 if any fail.
+func ReadyHandler(service string, checks ...Check) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+
+		deps := map[string]string{}
+		ready := true
+		for _, c := range checks {
+			if err := c.Ping(ctx); err != nil {
+				deps[c.Name] = err.Error()
+				ready = false
+			} else {
+				deps[c.Name] = "ok"
+			}
+		}
+		code := http.StatusOK
+		status := "ready"
+		if !ready {
+			code = http.StatusServiceUnavailable
+			status = "not ready"
+		}
+		writeJSON(w, code, map[string]any{"status": status, "service": service, "deps": deps})
+	}
+}
+
+func writeJSON(w http.ResponseWriter, code int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(body)
+}
+
+// AddrFromEnv returns ":$PORT" when PORT is set, otherwise fallback.
 func AddrFromEnv(fallback string) string {
 	if p := os.Getenv("PORT"); p != "" {
 		return ":" + p

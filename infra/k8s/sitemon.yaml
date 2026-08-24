@@ -130,8 +130,11 @@ spec:
             - configMapRef: { name: sitemon-config }
             - secretRef: { name: sitemon-secrets }
           env: [{ name: PORT, value: "8080" }]
-          readinessProbe:
+          livenessProbe:
             httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
             initialDelaySeconds: 3
 ---
 apiVersion: v1
@@ -161,8 +164,11 @@ spec:
           envFrom:
             - configMapRef: { name: sitemon-config }
           env: [{ name: PORT, value: "8081" }]
-          readinessProbe:
+          livenessProbe:
             httpGet: { path: /health, port: 8081 }
+            initialDelaySeconds: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8081 }
             initialDelaySeconds: 3
 ---
 apiVersion: apps/v1
@@ -183,6 +189,12 @@ spec:
           envFrom:
             - configMapRef: { name: sitemon-config }
           env: [{ name: PORT, value: "8082" }]
+          livenessProbe:
+            httpGet: { path: /health, port: 8082 }
+            initialDelaySeconds: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8082 }
+            initialDelaySeconds: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -203,6 +215,12 @@ spec:
             - configMapRef: { name: sitemon-config }
             - secretRef: { name: sitemon-secrets }
           env: [{ name: PORT, value: "8083" }]
+          livenessProbe:
+            httpGet: { path: /health, port: 8083 }
+            initialDelaySeconds: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8083 }
+            initialDelaySeconds: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -223,6 +241,12 @@ spec:
             - configMapRef: { name: sitemon-config }
             - secretRef: { name: sitemon-secrets }
           env: [{ name: PORT, value: "8090" }]
+          livenessProbe:
+            httpGet: { path: /health, port: 8090 }
+            initialDelaySeconds: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 8090 }
+            initialDelaySeconds: 3
 ---
 apiVersion: apps/v1
 kind: Deployment

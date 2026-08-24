@@ -62,8 +62,21 @@ func main() {
 
 	svc := service.New(b)
 
+	// Readiness reflects only the deps that are actually configured — the
+	// gateway runs standalone with none of them.
+	var ready []health.Check
+	if redis != nil {
+		ready = append(ready, health.Check{Name: "redis", Ping: redis.Ping})
+	}
+	if checks != nil {
+		ready = append(ready, health.Check{Name: "mongo", Ping: checks.Ping})
+	}
+	if b != nil {
+		ready = append(ready, health.Check{Name: "nats", Ping: b.Ping})
+	}
+
 	addr := health.AddrFromEnv(":8080")
-	if err := server.Run(svc, rm, addr); err != nil {
+	if err := server.Run(svc, rm, addr, ready...); err != nil {
 		logger.Log.Fatal().Err(err).Msg("gateway exited with error")
 	}
 }

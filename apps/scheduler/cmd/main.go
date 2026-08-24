@@ -50,7 +50,7 @@ func main() {
 	go func() {
 		addr := health.AddrFromEnv(":8082")
 		logger.Log.Info().Str("addr", addr).Msg("scheduler health listening")
-		_ = health.Serve("scheduler", addr)
+		_ = health.Serve("scheduler", addr, health.Check{Name: "nats", Ping: b.Ping})
 	}()
 
 	logger.Log.Info().Str("cron", cronExpr).Strs("urls", urls).

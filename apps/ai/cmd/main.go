@@ -70,7 +70,7 @@ func main() {
 	go func() {
 		addr := health.AddrFromEnv(":8090")
 		logger.Log.Info().Str("addr", addr).Msg("ai health listening")
-		_ = health.Serve("ai", addr)
+		_ = health.Serve("ai", addr, health.Check{Name: "nats", Ping: b.Ping}, health.Check{Name: "mongo", Ping: checks.Ping})
 	}()
 
 	logger.Log.Info().Msg("ai ready (ai.analyze)")
