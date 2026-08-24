@@ -6,6 +6,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.66.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-resty/resty/v2 v2.17.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/modelcontextprotocol/go-sdk v1.7.0

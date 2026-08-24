@@ -10,6 +10,7 @@ import (
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/server"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/ws"
 	"github.com/mralaminahamed/sitemon/packages/shared/bus"
 	"github.com/mralaminahamed/sitemon/packages/shared/cache"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
@@ -48,6 +49,12 @@ func main() {
 
 	rm := readmodel.New(redis, checks)
 
+	hub := ws.NewHub(func() []byte {
+		results, _ := rm.Status(context.Background())
+		b, _ := json.Marshal(map[string]any{"type": "snapshot", "results": results})
+		return b
+	})
+
 	var b *bus.Bus
 	if url := os.Getenv("NATS_URL"); url != "" {
 		if conn, err := bus.Connect(url); err != nil {
@@ -55,7 +62,7 @@ func main() {
 		} else {
 			b = conn
 			defer b.Close()
-			subscribeResults(b, rm)
+			subscribeResults(b, rm, hub)
 			logger.Log.Info().Msg("gateway: connected to NATS (distributed mode)")
 		}
 	}
@@ -76,12 +83,12 @@ func main() {
 	}
 
 	addr := health.AddrFromEnv(":8080")
-	if err := server.Run(svc, rm, addr, ready...); err != nil {
+	if err := server.Run(svc, rm, hub, addr, ready...); err != nil {
 		logger.Log.Fatal().Err(err).Msg("gateway exited with error")
 	}
 }
 
-func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel) {
+func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel, hub *ws.Hub) {
 	if err := b.EnsureStream(context.Background()); err != nil {
 		logger.Log.Warn().Err(err).Msg("gateway: ensure stream")
 		return
@@ -92,6 +99,9 @@ func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel) {
 			return errors.Join(bus.ErrDrop, err)
 		}
 		rm.PutResult(context.Background(), r)
+		if msg, err := json.Marshal(map[string]any{"type": "result", "result": r}); err == nil {
+			hub.Broadcast(msg)
+		}
 		return nil
 	})
 	if err != nil {
