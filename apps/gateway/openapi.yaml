@@ -67,6 +67,48 @@ paths:
               schema: { $ref: "#/components/schemas/CertificateInfo" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "502": { $ref: "#/components/responses/BadGateway" }
+  /api/monitors:
+    get:
+      summary: List tracked monitors
+      responses:
+        "200":
+          description: Monitors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  monitors:
+                    type: array
+                    items: { $ref: "#/components/schemas/Monitor" }
+    post:
+      summary: Add a tracked monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties: { url: { type: string } }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Monitor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/BadGateway" }
+    delete:
+      summary: Remove a tracked monitor
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
   /api/loadtest:
     post:
       summary: Run an HTTP load test
@@ -135,6 +177,11 @@ components:
         is_valid: { type: boolean }
         protocol: { type: string }
         cipher_suite: { type: string }
+    Monitor:
+      type: object
+      properties:
+        url: { type: string }
+        created_at: { type: string, format: date-time }
     RequestStats:
       type: object
       properties:

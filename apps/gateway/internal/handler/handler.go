@@ -5,6 +5,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -49,6 +50,9 @@ func (h *Handler) Root(c echo.Context) error {
 			"GET  /api/history?url=&limit=",
 			"GET  /api/stats?url=",
 			"GET  /api/analyze?url=",
+			"GET  /api/monitors",
+			"POST /api/monitors",
+			"DELETE /api/monitors?url=",
 			"POST /api/checks",
 			"GET  /api/ssl?url=",
 			"POST /api/loadtest",
@@ -73,6 +77,49 @@ func (h *Handler) History(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, echo.Map{"results": dto.FromHealthResults(results)})
+}
+
+// Monitors lists tracked URLs.
+func (h *Handler) Monitors(c echo.Context) error {
+	monitors, err := h.rm.ListMonitors(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"monitors": monitors})
+}
+
+// AddMonitor adds a tracked URL.
+func (h *Handler) AddMonitor(c echo.Context) error {
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return badRequest(c, "invalid JSON body")
+	}
+	url := normalizeURL(req.URL)
+	if url == "" {
+		return badRequest(c, "url is required")
+	}
+	if err := urlguard.Check(url); err != nil {
+		return badRequest(c, err.Error())
+	}
+	m, err := h.rm.AddMonitor(c.Request().Context(), url)
+	if err != nil {
+		return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusCreated, m)
+}
+
+// DeleteMonitor removes a tracked URL (?url=).
+func (h *Handler) DeleteMonitor(c echo.Context) error {
+	url := c.QueryParam("url")
+	if url == "" {
+		return badRequest(c, "url query parameter is required")
+	}
+	if err := h.rm.DeleteMonitor(c.Request().Context(), url); err != nil {
+		return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 // Analyze returns an AI incident analysis for ?url=.
@@ -181,6 +228,17 @@ func msOr(ms int, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return time.Duration(ms) * time.Millisecond
+}
+
+func normalizeURL(u string) string {
+	u = strings.TrimSpace(u)
+	if u == "" {
+		return u
+	}
+	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+		return "https://" + u
+	}
+	return u
 }
 
 func clamp(v, max int) int {

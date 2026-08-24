@@ -4,6 +4,7 @@ package readmodel
 
 import (
 	"context"
+	"errors"
 
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 	"github.com/mralaminahamed/sitemon/packages/shared/cache"
@@ -53,4 +54,28 @@ func (rm *ReadModel) Stats(ctx context.Context, url string) (store.Stats, error)
 		return store.Stats{URL: url}, nil
 	}
 	return rm.store.Stats(ctx, url)
+}
+
+// ErrNoStore is returned by monitor writes when Mongo is not configured.
+var ErrNoStore = errors.New("monitors require MongoDB (MONGO_URI)")
+
+func (rm *ReadModel) ListMonitors(ctx context.Context) ([]store.Monitor, error) {
+	if rm.store == nil {
+		return []store.Monitor{}, nil
+	}
+	return rm.store.ListMonitors(ctx)
+}
+
+func (rm *ReadModel) AddMonitor(ctx context.Context, url string) (store.Monitor, error) {
+	if rm.store == nil {
+		return store.Monitor{}, ErrNoStore
+	}
+	return rm.store.AddMonitor(ctx, url)
+}
+
+func (rm *ReadModel) DeleteMonitor(ctx context.Context, url string) error {
+	if rm.store == nil {
+		return ErrNoStore
+	}
+	return rm.store.DeleteMonitor(ctx, url)
 }

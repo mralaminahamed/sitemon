@@ -71,3 +71,33 @@ func TestSaveIdempotentAndQuery(t *testing.T) {
 		t.Errorf("stats = %+v, want total 2 up 1 down 1", stats)
 	}
 }
+
+func TestMonitors(t *testing.T) {
+	ctx := context.Background()
+	st, err := NewCheckStore(ctx, startMongo(t), "sitemon")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close(ctx)
+
+	if _, err := st.AddMonitor(ctx, "https://a.com"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddMonitor(ctx, "https://a.com"); err != nil { // idempotent
+		t.Fatal(err)
+	}
+	if _, err := st.AddMonitor(ctx, "https://b.com"); err != nil {
+		t.Fatal(err)
+	}
+	ms, err := st.ListMonitors(ctx)
+	if err != nil || len(ms) != 2 {
+		t.Fatalf("list = %d (%v), want 2", len(ms), err)
+	}
+	if err := st.DeleteMonitor(ctx, "https://a.com"); err != nil {
+		t.Fatal(err)
+	}
+	ms, _ = st.ListMonitors(ctx)
+	if len(ms) != 1 || ms[0].URL != "https://b.com" {
+		t.Fatalf("after delete = %+v, want [b.com]", ms)
+	}
+}

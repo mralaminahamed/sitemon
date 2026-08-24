@@ -15,8 +15,15 @@ import (
 const opTimeout = 5 * time.Second
 
 type CheckStore struct {
-	client *mongo.Client
-	col    *mongo.Collection
+	client   *mongo.Client
+	col      *mongo.Collection
+	monitors *mongo.Collection
+}
+
+// Monitor is a tracked URL. _id is the URL, so adds are idempotent.
+type Monitor struct {
+	URL       string    `json:"url" bson:"_id"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
 
 type Stats struct {
@@ -36,11 +43,53 @@ func NewCheckStore(ctx context.Context, uri, db string) (*CheckStore, error) {
 	if err := client.Ping(ctx, nil); err != nil {
 		return nil, err
 	}
-	col := client.Database(db).Collection("checks")
+	db2 := client.Database(db)
+	col := db2.Collection("checks")
 	_, _ = col.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{{Key: "url", Value: 1}, {Key: "timestamp", Value: -1}},
 	})
-	return &CheckStore{client: client, col: col}, nil
+	return &CheckStore{client: client, col: col, monitors: db2.Collection("monitors")}, nil
+}
+
+func (s *CheckStore) AddMonitor(ctx context.Context, url string) (Monitor, error) {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	now := time.Now().UTC()
+	_, err := s.monitors.UpdateOne(ctx,
+		bson.M{"_id": url},
+		bson.M{"$setOnInsert": bson.M{"created_at": now}},
+		options.Update().SetUpsert(true),
+	)
+	if err != nil {
+		return Monitor{}, err
+	}
+	var m Monitor
+	if err := s.monitors.FindOne(ctx, bson.M{"_id": url}).Decode(&m); err != nil {
+		return Monitor{URL: url, CreatedAt: now}, nil
+	}
+	return m, nil
+}
+
+func (s *CheckStore) ListMonitors(ctx context.Context) ([]Monitor, error) {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	cur, err := s.monitors.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	out := []Monitor{}
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *CheckStore) DeleteMonitor(ctx context.Context, url string) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	_, err := s.monitors.DeleteOne(ctx, bson.M{"_id": url})
+	return err
 }
 
 func (s *CheckStore) Ping(ctx context.Context) error {
