@@ -33,12 +33,17 @@ cd sitemon
 # Install dependencies
 go mod tidy
 
-# Build the binary
-go build -o sitemon .
+# Build the CLI (now lives under apps/cli in the monorepo)
+go build -o sitemon ./apps/cli
 
-# Or install globally
-go install
+# Build every service binary into ./bin
+make build
 ```
+
+> **Monorepo:** sitemon is being grown into a full-stack, microservices,
+> AI-native platform. See [ARCHITECTURE.md](ARCHITECTURE.md) for the target
+> system and [PLAN.md](PLAN.md) for the phased build. Local dev stack:
+> `make up` (mongo + redis + nats + gateway).
 
 ## Quick Start
 
