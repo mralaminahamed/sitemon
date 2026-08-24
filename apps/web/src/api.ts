@@ -1,12 +1,12 @@
 import type { HealthResult, Results, Stats } from "./types";
 
 const base = "/api";
+const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(base + path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers["X-API-Key"] = apiKey;
+  const res = await fetch(base + path, { headers, ...init });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `HTTP ${res.status}`);

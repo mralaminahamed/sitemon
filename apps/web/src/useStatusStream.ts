@@ -13,7 +13,9 @@ export function useStatusStream() {
   const qc = useQueryClient();
   useEffect(() => {
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const sock = new WebSocket(`${proto}://${location.host}/ws`);
+    const key = import.meta.env.VITE_API_KEY as string | undefined;
+    const qs = key ? `?api_key=${encodeURIComponent(key)}` : "";
+    const sock = new WebSocket(`${proto}://${location.host}/ws${qs}`);
 
     sock.onmessage = (e) => {
       const msg: Msg = JSON.parse(e.data);
