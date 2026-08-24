@@ -12,12 +12,24 @@ package bus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
+
+// ErrDrop marks a message as non-retryable so Consume terminates it instead of
+// redelivering (e.g. malformed payloads). Wrap it: errors.Join(bus.ErrDrop, err).
+var ErrDrop = errors.New("drop message")
+
+// replyEnvelope wraps request-reply payloads so remote errors surface to the
+// caller instead of being silently unmarshaled into a zero value.
+type replyEnvelope struct {
+	Data  json.RawMessage `json:"data,omitempty"`
+	Error string          `json:"error,omitempty"`
+}
 
 // Subjects.
 const (
@@ -97,13 +109,21 @@ func (b *Bus) Consume(ctx context.Context, durable, filterSubject string, handle
 		Durable:       durable,
 		FilterSubject: filterSubject,
 		AckPolicy:     jetstream.AckExplicitPolicy,
+		MaxDeliver:    5,
+		BackOff:       []time.Duration{time.Second, 5 * time.Second, 15 * time.Second},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create consumer %s: %w", durable, err)
 	}
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
 		if err := handler(msg.Data()); err != nil {
-			_ = msg.Nak()
+			// Non-retryable (bad data) is terminated so it can't hot-loop;
+			// everything else is redelivered up to MaxDeliver with backoff.
+			if errors.Is(err, ErrDrop) {
+				_ = msg.Term()
+			} else {
+				_ = msg.Nak()
+			}
 			return
 		}
 		_ = msg.Ack()
@@ -125,24 +145,38 @@ func (b *Bus) Request(subject string, in, out any, timeout time.Duration) error 
 	if err != nil {
 		return fmt.Errorf("request %s: %w", subject, err)
 	}
-	return json.Unmarshal(msg.Data, out)
+	var env replyEnvelope
+	if err := json.Unmarshal(msg.Data, &env); err != nil {
+		return fmt.Errorf("decode reply %s: %w", subject, err)
+	}
+	if env.Error != "" {
+		return fmt.Errorf("%s: %s", subject, env.Error)
+	}
+	if out == nil {
+		return nil
+	}
+	return json.Unmarshal(env.Data, out)
 }
 
 // Reply registers a queue-subscribed responder. Handlers sharing queue
 // load-balance requests. It returns an unsubscribe func.
 func (b *Bus) Reply(subject, queue string, handler func([]byte) (any, error)) (func(), error) {
+	respond := func(m *nats.Msg, env replyEnvelope) {
+		data, _ := json.Marshal(env)
+		_ = m.Respond(data)
+	}
 	sub, err := b.nc.QueueSubscribe(subject, queue, func(m *nats.Msg) {
 		out, err := handler(m.Data)
 		if err != nil {
-			_ = m.Respond([]byte(fmt.Sprintf(`{"error":%q}`, err.Error())))
+			respond(m, replyEnvelope{Error: err.Error()})
 			return
 		}
-		data, err := json.Marshal(out)
+		raw, err := json.Marshal(out)
 		if err != nil {
-			_ = m.Respond([]byte(fmt.Sprintf(`{"error":%q}`, err.Error())))
+			respond(m, replyEnvelope{Error: err.Error()})
 			return
 		}
-		_ = m.Respond(data)
+		respond(m, replyEnvelope{Data: raw})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reply %s: %w", subject, err)

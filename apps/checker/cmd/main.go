@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -74,7 +75,7 @@ func main() {
 	stopJobs, err := b.Consume(ctx, "checker-jobs", bus.SubjectCheckJob, func(data []byte) error {
 		var job bus.CheckJob
 		if err := json.Unmarshal(data, &job); err != nil {
-			return err // nak; malformed will redeliver but that's acceptable here
+			return errors.Join(bus.ErrDrop, err)
 		}
 		result := engine.Check(job.URL, time.Duration(job.TimeoutMs)*time.Millisecond, job.BypassCloudflare)
 

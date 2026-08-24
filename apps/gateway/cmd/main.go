@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
@@ -75,7 +76,7 @@ func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel) {
 	_, err := b.Consume(context.Background(), "gateway-status", bus.SubjectCheckResult, func(data []byte) error {
 		var r models.HealthResult
 		if err := json.Unmarshal(data, &r); err != nil {
-			return err
+			return errors.Join(bus.ErrDrop, err)
 		}
 		rm.PutResult(context.Background(), r)
 		return nil
