@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/handler"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/metrics"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
@@ -27,6 +28,7 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
+	e.Use(metrics.Middleware())
 	// Open CORS for the React app in dev; tighten per-origin in Phase 7.
 	e.Use(middleware.CORS())
 
@@ -34,6 +36,7 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 
 	e.GET("/", h.Root)
 	e.GET("/health", h.Health)
+	e.GET("/metrics", metrics.Handler())
 
 	api := e.Group("/api")
 	api.GET("/status", h.Status)
