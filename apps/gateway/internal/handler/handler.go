@@ -12,6 +12,16 @@ import (
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
 	"github.com/mralaminahamed/sitemon/packages/shared/loadtest"
+	"github.com/mralaminahamed/sitemon/packages/shared/urlguard"
+)
+
+// Load-test hard ceilings — protect the platform from being used to hammer a
+// target with unbounded workers/rps/count/duration.
+const (
+	maxWorkers  = 500
+	maxRPS      = 5000
+	maxCount    = 1_000_000
+	maxDuration = 10 * time.Minute
 )
 
 type Handler struct {
@@ -100,6 +110,11 @@ func (h *Handler) Checks(c echo.Context) error {
 	if len(req.URLs) == 0 {
 		return badRequest(c, "at least one url is required")
 	}
+	for _, u := range req.URLs {
+		if err := urlguard.Check(u); err != nil {
+			return badRequest(c, err.Error())
+		}
+	}
 
 	timeout := msOr(req.TimeoutMs, 10*time.Second)
 	results := h.svc.CheckURLs(req.URLs, timeout, req.BypassCloudflare)
@@ -111,6 +126,9 @@ func (h *Handler) SSL(c echo.Context) error {
 	url := c.QueryParam("url")
 	if url == "" {
 		return badRequest(c, "url query parameter is required")
+	}
+	if err := urlguard.Check(url); err != nil {
+		return badRequest(c, err.Error())
 	}
 
 	timeout := 10 * time.Second
@@ -130,14 +148,17 @@ func (h *Handler) LoadTest(c echo.Context) error {
 	if req.URL == "" {
 		return badRequest(c, "url is required")
 	}
+	if err := urlguard.Check(req.URL); err != nil {
+		return badRequest(c, err.Error())
+	}
 
 	opts := loadtest.Options{
 		URL:      req.URL,
 		Method:   req.Method,
-		Workers:  req.Workers,
-		RPS:      req.RPS,
-		Count:    req.Count,
-		Duration: time.Duration(req.DurationMs) * time.Millisecond,
+		Workers:  clamp(req.Workers, maxWorkers),
+		RPS:      clamp(req.RPS, maxRPS),
+		Count:    clamp(req.Count, maxCount),
+		Duration: clampDur(time.Duration(req.DurationMs)*time.Millisecond, maxDuration),
 		Timeout:  msOr(req.TimeoutMs, 10*time.Second),
 		Headers:  req.Headers,
 		BypassCF: req.BypassCloudflare,
@@ -160,4 +181,18 @@ func msOr(ms int, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return time.Duration(ms) * time.Millisecond
+}
+
+func clamp(v, max int) int {
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func clampDur(v, max time.Duration) time.Duration {
+	if v > max {
+		return max
+	}
+	return v
 }
