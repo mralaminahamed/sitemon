@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
+	"time"
 
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
 	"github.com/redis/go-redis/v9"
@@ -14,6 +15,7 @@ import (
 const (
 	statusKey    = "sitemon:status"
 	lastStatusNS = "sitemon:laststatus:"
+	opTimeout    = 3 * time.Second
 )
 
 type Redis struct {
@@ -32,7 +34,15 @@ func NewRedis(ctx context.Context, url string) (*Redis, error) {
 	return &Redis{c: c}, nil
 }
 
+func (r *Redis) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	return r.c.Ping(ctx).Err()
+}
+
 func (r *Redis) StatusPut(ctx context.Context, res models.HealthResult) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	data, err := json.Marshal(res)
 	if err != nil {
 		return err
@@ -41,6 +51,8 @@ func (r *Redis) StatusPut(ctx context.Context, res models.HealthResult) error {
 }
 
 func (r *Redis) StatusSnapshot(ctx context.Context) ([]models.HealthResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	m, err := r.c.HGetAll(ctx, statusKey).Result()
 	if err != nil {
 		return nil, err
@@ -59,6 +71,8 @@ func (r *Redis) StatusSnapshot(ctx context.Context) ([]models.HealthResult, erro
 // Transition atomically stores the new status and returns the previous one
 // ("" if none), letting the caller detect up<->down changes across replicas.
 func (r *Redis) Transition(ctx context.Context, url, status string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	prev, err := r.c.GetSet(ctx, lastStatusNS+url, status).Result()
 	if err == redis.Nil {
 		return "", nil
