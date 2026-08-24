@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/icon-256.png" alt="Sitemon icon" width="96" height="96">
+
 # Sitemon — Developer Guide
 
 **Watch your sites from one place — health checks and load tests that fan out across Go microservices over NATS, land in MongoDB and Redis, surface on a React dashboard, and turn into plain-English incident summaries written by Claude.**

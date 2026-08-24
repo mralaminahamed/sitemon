@@ -1,0 +1,29 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f8bf7"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="512" cy="300" r="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-20%" y="-40%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#1e1b4b" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- macOS squircle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#sheen)"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="224" ry="224" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="4"/>
+
+  <!-- health pulse -->
+  <polyline points="150,545 360,545 424,432 505,662 596,300 686,545 874,545"
+    fill="none" stroke="#ffffff" stroke-width="48"
+    stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+
+  <!-- status node -->
+  <circle cx="596" cy="300" r="42" fill="#34d399" stroke="#ffffff" stroke-width="14"/>
+</svg>
