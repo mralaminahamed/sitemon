@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sitemon
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sitemon-config
+  namespace: sitemon
+data:
+  NATS_URL: nats://nats:4222
+  REDIS_URL: redis://redis:6379/0
+  MONGO_URI: mongodb://mongo:27017/sitemon
+  MONGO_DB: sitemon
+  LOG_LEVEL: info
+  SCHEDULE_CRON: "*/5 * * * *"
+  SCHEDULE_URLS: https://example.com
+  ANTHROPIC_MODEL: claude-opus-5
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sitemon-secrets
+  namespace: sitemon
+type: Opaque
+stringData:
+  ANTHROPIC_API_KEY: ""
+  WEBHOOK_URL: ""
+---
+# --- backing stores (ephemeral; use managed services or StatefulSets in prod) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: mongo } }
+  template:
+    metadata: { labels: { app: mongo } }
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports: [{ containerPort: 27017 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: sitemon
+spec:
+  selector: { app: mongo }
+  ports: [{ port: 27017, targetPort: 27017 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports: [{ containerPort: 6379 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: sitemon
+spec:
+  selector: { app: redis }
+  ports: [{ port: 6379, targetPort: 6379 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: nats } }
+  template:
+    metadata: { labels: { app: nats } }
+    spec:
+      containers:
+        - name: nats
+          image: nats:2-alpine
+          args: ["-js", "-m", "8222"]
+          ports:
+            - { containerPort: 4222 }
+            - { containerPort: 8222 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: sitemon
+spec:
+  selector: { app: nats }
+  ports:
+    - { name: client, port: 4222, targetPort: 4222 }
+    - { name: monitor, port: 8222, targetPort: 8222 }
+---
+# --- application services (images published by .github/workflows/images.yml) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: sitemon
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: gateway } }
+  template:
+    metadata: { labels: { app: gateway } }
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/mralaminahamed/sitemon/gateway:latest
+          ports: [{ containerPort: 8080 }]
+          envFrom:
+            - configMapRef: { name: sitemon-config }
+            - secretRef: { name: sitemon-secrets }
+          env: [{ name: PORT, value: "8080" }]
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: sitemon
+spec:
+  selector: { app: gateway }
+  ports: [{ port: 8080, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checker
+  namespace: sitemon
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: checker } }
+  template:
+    metadata: { labels: { app: checker } }
+    spec:
+      containers:
+        - name: checker
+          image: ghcr.io/mralaminahamed/sitemon/checker:latest
+          ports: [{ containerPort: 8081 }]
+          envFrom:
+            - configMapRef: { name: sitemon-config }
+          env: [{ name: PORT, value: "8081" }]
+          readinessProbe:
+            httpGet: { path: /health, port: 8081 }
+            initialDelaySeconds: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: scheduler } }
+  template:
+    metadata: { labels: { app: scheduler } }
+    spec:
+      containers:
+        - name: scheduler
+          image: ghcr.io/mralaminahamed/sitemon/scheduler:latest
+          ports: [{ containerPort: 8082 }]
+          envFrom:
+            - configMapRef: { name: sitemon-config }
+          env: [{ name: PORT, value: "8082" }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifier
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: notifier } }
+  template:
+    metadata: { labels: { app: notifier } }
+    spec:
+      containers:
+        - name: notifier
+          image: ghcr.io/mralaminahamed/sitemon/notifier:latest
+          ports: [{ containerPort: 8083 }]
+          envFrom:
+            - configMapRef: { name: sitemon-config }
+            - secretRef: { name: sitemon-secrets }
+          env: [{ name: PORT, value: "8083" }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai
+  namespace: sitemon
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ai } }
+  template:
+    metadata: { labels: { app: ai } }
+    spec:
+      containers:
+        - name: ai
+          image: ghcr.io/mralaminahamed/sitemon/ai:latest
+          ports: [{ containerPort: 8090 }]
+          envFrom:
+            - configMapRef: { name: sitemon-config }
+            - secretRef: { name: sitemon-secrets }
+          env: [{ name: PORT, value: "8090" }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: sitemon
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/mralaminahamed/sitemon/web:latest
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: sitemon
+spec:
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: 80 }]

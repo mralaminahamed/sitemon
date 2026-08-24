@@ -1,0 +1,107 @@
+# ==============================================================================
+# Sitemon Platform — Production stack (published images + Caddy).
+# Usage: docker compose -f infra/docker-compose.prod.yml up -d
+# Set IMAGE_TAG (default latest) and secrets in ../.env.
+# ==============================================================================
+
+name: sitemon-prod
+
+x-svc: &svc
+  env_file: [../.env]
+  restart: unless-stopped
+  networks: [sitemon-net]
+  depends_on:
+    mongo: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    nats: { condition: service_healthy }
+
+services:
+  mongo:
+    image: mongo:7
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [sitemon-net]
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes: [redis-data:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 10 }
+    restart: unless-stopped
+    networks: [sitemon-net]
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-m", "8222"]
+    volumes: [nats-data:/data]
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"], interval: 5s, timeout: 3s, retries: 10 }
+    restart: unless-stopped
+    networks: [sitemon-net]
+
+  gateway:
+    <<: *svc
+    image: ghcr.io/mralaminahamed/sitemon/gateway:${IMAGE_TAG:-latest}
+    environment:
+      PORT: "8080"
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      MONGO_URI: mongodb://mongo:27017/sitemon
+
+  checker:
+    <<: *svc
+    image: ghcr.io/mralaminahamed/sitemon/checker:${IMAGE_TAG:-latest}
+    environment: { PORT: "8081", NATS_URL: nats://nats:4222 }
+
+  scheduler:
+    <<: *svc
+    image: ghcr.io/mralaminahamed/sitemon/scheduler:${IMAGE_TAG:-latest}
+    environment:
+      PORT: "8082"
+      NATS_URL: nats://nats:4222
+      SCHEDULE_CRON: ${SCHEDULE_CRON:-*/5 * * * *}
+      SCHEDULE_URLS: ${SCHEDULE_URLS:-https://example.com}
+
+  notifier:
+    <<: *svc
+    image: ghcr.io/mralaminahamed/sitemon/notifier:${IMAGE_TAG:-latest}
+    environment: { PORT: "8083", NATS_URL: nats://nats:4222, REDIS_URL: redis://redis:6379/0 }
+
+  ai:
+    <<: *svc
+    image: ghcr.io/mralaminahamed/sitemon/ai:${IMAGE_TAG:-latest}
+    environment:
+      PORT: "8090"
+      NATS_URL: nats://nats:4222
+      MONGO_URI: mongodb://mongo:27017/sitemon
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
+
+  web:
+    image: ghcr.io/mralaminahamed/sitemon/web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    networks: [sitemon-net]
+    depends_on: [gateway]
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [web, gateway]
+    restart: unless-stopped
+    networks: [sitemon-net]
+
+volumes:
+  mongo-data:
+  redis-data:
+  nats-data:
+  caddy-data:
+
+networks:
+  sitemon-net:
+    driver: bridge

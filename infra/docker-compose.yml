@@ -190,6 +190,37 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
 
+  # --- observability profile: make obs-up ---
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sitemon-prometheus
+    profiles: [observability]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9099:9090"
+    restart: unless-stopped
+    networks:
+      - sitemon-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sitemon-grafana
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3099:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - sitemon-net
+
 volumes:
   mongo-data:
   redis-data:
@@ -197,6 +228,7 @@ volumes:
   go-build:
   go-mod:
   web-node-modules:
+  grafana-data:
 
 networks:
   sitemon-net:
