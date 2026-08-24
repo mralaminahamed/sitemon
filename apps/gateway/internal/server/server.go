@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,8 +32,16 @@ func New(svc *service.Service, rm *readmodel.ReadModel, checks ...health.Check) 
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
 	e.Use(metrics.Middleware())
-	// Open CORS for the React app in dev; tighten per-origin in Phase 7.
-	e.Use(middleware.CORS())
+	// Restrict CORS to CORS_ORIGINS (comma-separated) when set; otherwise allow
+	// all for local dev, with a warning so prod isn't left open by accident.
+	if origins := os.Getenv("CORS_ORIGINS"); origins != "" {
+		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins: strings.Split(origins, ","),
+		}))
+	} else {
+		logger.Log.Warn().Msg("gateway: CORS_ORIGINS unset — allowing all origins (dev)")
+		e.Use(middleware.CORS())
+	}
 
 	h := handler.New(svc, rm)
 
