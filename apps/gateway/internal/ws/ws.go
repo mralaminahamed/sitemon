@@ -3,6 +3,8 @@ package ws
 
 import (
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,8 +12,27 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(*http.Request) bool { return true },
+var upgrader = websocket.Upgrader{CheckOrigin: originAllowed}
+
+// originAllowed guards against cross-site WebSocket hijacking. When
+// CORS_ORIGINS is set, the browser Origin must be in that allowlist; a missing
+// Origin (non-browser client) is allowed. Unset = allow all (dev), matching
+// the CORS default.
+func originAllowed(r *http.Request) bool {
+	allow := os.Getenv("CORS_ORIGINS")
+	if allow == "" {
+		return true
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	for _, o := range strings.Split(allow, ",") {
+		if strings.TrimSpace(o) == origin {
+			return true
+		}
+	}
+	return false
 }
 
 type Hub struct {

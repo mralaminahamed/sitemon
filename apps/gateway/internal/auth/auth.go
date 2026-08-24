@@ -18,6 +18,11 @@ func APIKey(key string) echo.MiddlewareFunc {
 			if got == "" {
 				got = strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 			}
+			if got == "" {
+				// Browsers can't set headers on a WebSocket handshake, so also
+				// accept the key as a query parameter.
+				got = c.QueryParam("api_key")
+			}
 			if subtle.ConstantTimeCompare([]byte(got), want) != 1 {
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid or missing API key")
 			}
