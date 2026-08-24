@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: Sitemon Gateway API
+  version: 0.1.0
+  description: >
+    REST API for site health checks, SSL inspection, and HTTP load testing.
+    Phase 1 runs the engines in-process; the contract is stable across the
+    later gRPC split.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string, example: gateway }
+  /api/checks:
+    post:
+      summary: Run health checks for one or more URLs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [urls]
+              properties:
+                urls:
+                  type: array
+                  items: { type: string }
+                  example: ["example.com", "https://httpbin.org/status/404"]
+                timeout_ms: { type: integer, default: 10000 }
+                bypass_cloudflare: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Health results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/HealthResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/ssl:
+    get:
+      summary: Inspect a URL's TLS certificate
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Certificate details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertificateInfo" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+  /api/loadtest:
+    post:
+      summary: Run an HTTP load test
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+                method: { type: string, default: GET }
+                workers: { type: integer, default: 10 }
+                rps: { type: integer, default: 100 }
+                count: { type: integer, default: 100 }
+                duration_ms: { type: integer }
+                timeout_ms: { type: integer, default: 10000 }
+                headers:
+                  type: object
+                  additionalProperties: { type: string }
+                bypass_cloudflare: { type: boolean }
+      responses:
+        "200":
+          description: Aggregate statistics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequestStats" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadGateway:
+      description: Upstream failure
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    HealthResult:
+      type: object
+      properties:
+        url: { type: string }
+        status: { type: string, enum: [UP, WARNING, REDIRECT, DOWN] }
+        status_code: { type: integer }
+        response_time_ms: { type: integer, description: nanoseconds (time.Duration) }
+        timestamp: { type: string, format: date-time }
+        error: { type: string }
+    CertificateInfo:
+      type: object
+      properties:
+        url: { type: string }
+        host: { type: string }
+        issuer: { type: string }
+        subject: { type: string }
+        valid_from: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        days_remaining: { type: integer }
+        is_valid: { type: boolean }
+        protocol: { type: string }
+        cipher_suite: { type: string }
+    RequestStats:
+      type: object
+      properties:
+        total_requests: { type: integer }
+        successful: { type: integer }
+        failed: { type: integer }
+        requests_per_sec: { type: number }
+        success_rate: { type: number }
+        p50_latency_ms: { type: integer }
+        p90_latency_ms: { type: integer }
+        p95_latency_ms: { type: integer }
+        p99_latency_ms: { type: integer }
+        status_codes:
+          type: object
+          additionalProperties: { type: integer }
