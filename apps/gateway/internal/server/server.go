@@ -17,11 +17,12 @@ import (
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/metrics"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
+	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 )
 
 // New builds a configured Echo instance with middleware and routes.
-func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
+func New(svc *service.Service, rm *readmodel.ReadModel, checks ...health.Check) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -37,6 +38,7 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 
 	e.GET("/", h.Root)
 	e.GET("/health", h.Health)
+	e.GET("/ready", echo.WrapHandler(health.ReadyHandler("gateway", checks...)))
 	e.GET("/metrics", metrics.Handler())
 
 	api := e.Group("/api")
@@ -60,8 +62,8 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 
 // Run starts the server and blocks until SIGINT/SIGTERM, then shuts down
 // gracefully.
-func Run(svc *service.Service, rm *readmodel.ReadModel, addr string) error {
-	e := New(svc, rm)
+func Run(svc *service.Service, rm *readmodel.ReadModel, addr string, checks ...health.Check) error {
+	e := New(svc, rm, checks...)
 
 	go func() {
 		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {

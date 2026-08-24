@@ -3,12 +3,15 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+const opTimeout = 5 * time.Second
 
 type CheckStore struct {
 	client *mongo.Client
@@ -39,7 +42,15 @@ func NewCheckStore(ctx context.Context, uri, db string) (*CheckStore, error) {
 	return &CheckStore{client: client, col: col}, nil
 }
 
+func (s *CheckStore) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	return s.client.Ping(ctx, nil)
+}
+
 func (s *CheckStore) Save(ctx context.Context, r models.HealthResult) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	_, err := s.col.InsertOne(ctx, r)
 	return err
 }
@@ -52,6 +63,8 @@ func (s *CheckStore) History(ctx context.Context, url string, limit int64) ([]mo
 	if limit <= 0 {
 		limit = 100
 	}
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}}).SetLimit(limit)
 	cur, err := s.col.Find(ctx, filter, opts)
 	if err != nil {
@@ -67,6 +80,8 @@ func (s *CheckStore) History(ctx context.Context, url string, limit int64) ([]mo
 }
 
 func (s *CheckStore) Stats(ctx context.Context, url string) (Stats, error) {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
 	match := bson.M{}
 	if url != "" {
 		match["url"] = url

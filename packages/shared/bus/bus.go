@@ -184,6 +184,14 @@ func (b *Bus) Reply(subject, queue string, handler func([]byte) (any, error)) (f
 	return func() { _ = sub.Unsubscribe() }, nil
 }
 
+// Ping reports whether the NATS connection is healthy.
+func (b *Bus) Ping(context.Context) error {
+	if b.nc == nil || !b.nc.IsConnected() {
+		return fmt.Errorf("nats not connected")
+	}
+	return nil
+}
+
 // Close drains and closes the connection.
 func (b *Bus) Close() {
 	if b.nc != nil {

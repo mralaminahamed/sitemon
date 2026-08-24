@@ -96,7 +96,7 @@ func main() {
 	go func() {
 		addr := health.AddrFromEnv(":8081")
 		logger.Log.Info().Str("addr", addr).Msg("checker health listening")
-		_ = health.Serve("checker", addr)
+		_ = health.Serve("checker", addr, health.Check{Name: "nats", Ping: b.Ping})
 	}()
 
 	logger.Log.Info().Msg("checker ready (rpc + job consumer)")
