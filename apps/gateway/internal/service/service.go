@@ -8,6 +8,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/monitor"
 	"github.com/mralaminahamed/sitemon/packages/shared/ssl"
 )
+
+// ErrNoBus is returned by bus-only operations when running in-process.
+var ErrNoBus = errors.New("feature requires the event bus (distributed mode)")
 
 type Service struct {
 	bus *bus.Bus // nil => in-process mode
@@ -55,6 +59,18 @@ func (s *Service) checkInProcess(urls []string, timeout time.Duration, bypassCF 
 	}
 	client := shttp.NewClient(timeout, opts...)
 	return monitor.NewHealthChecker(client).CheckMultiple(urls)
+}
+
+// Analyze asks the ai service for an incident analysis of url. Requires the
+// bus (distributed mode); returns an error otherwise.
+func (s *Service) Analyze(url string, limit int) (map[string]any, error) {
+	if s.bus == nil {
+		return nil, ErrNoBus
+	}
+	var out map[string]any
+	req := bus.RunAnalyzeRequest{URL: normalizeOne(url), Limit: limit}
+	err := s.bus.Request(bus.SubjectAIAnalyze, req, &out, 35*time.Second)
+	return out, err
 }
 
 // SSL returns certificate details for a single URL (always in-process).

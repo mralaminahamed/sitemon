@@ -39,6 +39,7 @@ func New(svc *service.Service, rm *readmodel.ReadModel) *echo.Echo {
 	api.GET("/status", h.Status)
 	api.GET("/history", h.History)
 	api.GET("/stats", h.Stats)
+	api.GET("/analyze", h.Analyze)
 	api.POST("/checks", h.Checks)
 	api.GET("/ssl", h.SSL)
 	api.POST("/loadtest", h.LoadTest)

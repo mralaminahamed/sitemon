@@ -179,12 +179,16 @@ services:
     networks:
       - sitemon-net
 
-  # ai: health stub (Phase 5)
-  # ai:
-  #   <<: *go-svc
-  #   container_name: sitemon-ai
-  #   command: ["go", "run", "./apps/ai/cmd"]
-  #   environment: { PORT: "8090" }
+  ai:
+    <<: *go-svc
+    container_name: sitemon-ai
+    command: ["go", "run", "./apps/ai/cmd"]
+    environment:
+      PORT: "8090"
+      NATS_URL: nats://nats:4222
+      MONGO_URI: mongodb://sitemon:sitemon@mongo:27017/sitemon?authSource=admin
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
 
 volumes:
   mongo-data:

@@ -29,6 +29,7 @@ const (
 
 	SubjectCheckerRun      = "checker.run"      // gateway -> checker (req-reply)
 	SubjectCheckerLoadTest = "checker.loadtest" // gateway -> checker (req-reply)
+	SubjectAIAnalyze       = "ai.analyze"       // gateway -> ai (req-reply)
 
 	// QueueCheckers load-balances work across checker replicas.
 	QueueCheckers = "checkers"

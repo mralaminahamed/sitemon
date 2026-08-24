@@ -29,6 +29,11 @@ type RunCheckRequest struct {
 	BypassCloudflare bool   `json:"bypass_cloudflare,omitempty"`
 }
 
+type RunAnalyzeRequest struct {
+	URL   string `json:"url"`
+	Limit int    `json:"limit,omitempty"`
+}
+
 type RunLoadTestRequest struct {
 	URL              string            `json:"url"`
 	Method           string            `json:"method,omitempty"`

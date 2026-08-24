@@ -38,6 +38,7 @@ func (h *Handler) Root(c echo.Context) error {
 			"GET  /api/status",
 			"GET  /api/history?url=&limit=",
 			"GET  /api/stats?url=",
+			"GET  /api/analyze?url=",
 			"POST /api/checks",
 			"GET  /api/ssl?url=",
 			"POST /api/loadtest",
@@ -62,6 +63,23 @@ func (h *Handler) History(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, echo.Map{"results": results})
+}
+
+// Analyze returns an AI incident analysis for ?url=.
+func (h *Handler) Analyze(c echo.Context) error {
+	url := c.QueryParam("url")
+	if url == "" {
+		return badRequest(c, "url query parameter is required")
+	}
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	out, err := h.svc.Analyze(url, limit)
+	if err != nil {
+		if err == service.ErrNoBus {
+			return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{Error: err.Error()})
+		}
+		return c.JSON(http.StatusBadGateway, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, out)
 }
 
 // Stats returns aggregate uptime/latency for ?url=.
