@@ -133,25 +133,35 @@ services:
       timeout: 3s
       retries: 5
 
-  # --- Uncomment as each phase lands (see PLAN.md) --------------------------
-  # checker:
-  #   <<: *go-svc
-  #   container_name: sitemon-checker
-  #   command: ["go", "run", "./apps/checker/cmd"]
-  #   environment: { PORT: "8081" }
-  #
-  # scheduler:
-  #   <<: *go-svc
-  #   container_name: sitemon-scheduler
-  #   command: ["go", "run", "./apps/scheduler/cmd"]
-  #   environment: { PORT: "8082" }
-  #
-  # notifier:
-  #   <<: *go-svc
-  #   container_name: sitemon-notifier
-  #   command: ["go", "run", "./apps/notifier/cmd"]
-  #   environment: { PORT: "8083" }
-  #
+  checker:
+    <<: *go-svc
+    container_name: sitemon-checker
+    command: ["go", "run", "./apps/checker/cmd"]
+    environment:
+      PORT: "8081"
+      NATS_URL: nats://nats:4222
+
+  scheduler:
+    <<: *go-svc
+    container_name: sitemon-scheduler
+    command: ["go", "run", "./apps/scheduler/cmd"]
+    environment:
+      PORT: "8082"
+      NATS_URL: nats://nats:4222
+      SCHEDULE_CRON: ${SCHEDULE_CRON:-*/5 * * * *}
+      SCHEDULE_URLS: ${SCHEDULE_URLS:-https://example.com}
+
+  notifier:
+    <<: *go-svc
+    container_name: sitemon-notifier
+    command: ["go", "run", "./apps/notifier/cmd"]
+    environment:
+      PORT: "8083"
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+
+  # ai: health stub (Phase 5)
   # ai:
   #   <<: *go-svc
   #   container_name: sitemon-ai

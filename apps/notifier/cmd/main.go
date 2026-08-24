@@ -16,26 +16,18 @@ import (
 	"time"
 
 	"github.com/mralaminahamed/sitemon/packages/shared/bus"
+	"github.com/mralaminahamed/sitemon/packages/shared/cache"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
 	"github.com/mralaminahamed/sitemon/packages/shared/notify"
 )
 
-type tracker struct {
-	mu   sync.Mutex
-	last map[string]string
-}
-
-// decide records the new status and returns "down", "recovery", or "" (no
-// transition / first sighting).
-func (t *tracker) decide(url, status string) string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	prev, seen := t.last[url]
-	t.last[url] = status
+// classify maps a status transition to an alert type. prev == "" (first
+// sighting) yields no alert.
+func classify(prev, status string) string {
 	switch {
-	case !seen:
+	case prev == "":
 		return ""
 	case prev == "UP" && status != "UP":
 		return "down"
@@ -44,6 +36,19 @@ func (t *tracker) decide(url, status string) string {
 	default:
 		return ""
 	}
+}
+
+type tracker struct {
+	mu   sync.Mutex
+	last map[string]string
+}
+
+func (t *tracker) decide(url, status string) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	prev := t.last[url]
+	t.last[url] = status
+	return classify(prev, status)
 }
 
 func main() {
@@ -65,14 +70,35 @@ func main() {
 		logger.Log.Fatal().Err(err).Msg("notifier: ensure stream")
 	}
 
+	var redis *cache.Redis
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		if r, err := cache.NewRedis(context.Background(), url); err != nil {
+			logger.Log.Warn().Err(err).Msg("notifier: Redis unavailable, using in-memory dedup")
+		} else {
+			redis = r
+			defer redis.Close()
+		}
+	}
 	tr := &tracker{last: map[string]string{}}
+
+	decide := func(ctx context.Context, url, status string) string {
+		if redis != nil {
+			prev, err := redis.Transition(ctx, url, status)
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("redis transition")
+				return ""
+			}
+			return classify(prev, status)
+		}
+		return tr.decide(url, status)
+	}
 
 	stop, err := b.Consume(context.Background(), "notifier", bus.SubjectCheckResult, func(data []byte) error {
 		var result models.HealthResult
 		if err := json.Unmarshal(data, &result); err != nil {
 			return err
 		}
-		alertType := tr.decide(result.URL, result.Status)
+		alertType := decide(context.Background(), result.URL, result.Status)
 		if alertType == "" {
 			return nil
 		}

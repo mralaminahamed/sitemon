@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
-	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 )
 
-func newHandler() *Handler { return New(service.New(nil), statuscache.New()) }
+func newHandler() *Handler { return New(service.New(nil), readmodel.New(nil, nil)) }
 
 func TestHealth(t *testing.T) {
 	e := echo.New()

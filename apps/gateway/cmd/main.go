@@ -1,9 +1,4 @@
 // Command gateway is the sitemon REST/WebSocket entrypoint.
-//
-// Phase 2: it connects to NATS (best-effort). With a bus it dispatches checks
-// and load tests to the checker service and maintains a live status cache from
-// check.result events. Without a bus it runs the engines in-process, so it
-// still works standalone. See ARCHITECTURE.md.
 package main
 
 import (
@@ -11,13 +6,15 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/mralaminahamed/sitemon/apps/gateway/internal/readmodel"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/server"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/service"
-	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 	"github.com/mralaminahamed/sitemon/packages/shared/bus"
+	"github.com/mralaminahamed/sitemon/packages/shared/cache"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
+	"github.com/mralaminahamed/sitemon/packages/shared/store"
 )
 
 func main() {
@@ -26,36 +23,51 @@ func main() {
 		level = "info"
 	}
 	logger.InitLogger(logger.LoggerOptions{Level: level})
+	ctx := context.Background()
 
-	cache := statuscache.New()
+	var redis *cache.Redis
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		if r, err := cache.NewRedis(ctx, url); err != nil {
+			logger.Log.Warn().Err(err).Msg("gateway: Redis unavailable, using in-memory status")
+		} else {
+			redis = r
+			defer redis.Close()
+		}
+	}
 
-	// Connect to NATS if configured; degrade to in-process mode on failure so
-	// the gateway always starts.
+	var checks *store.CheckStore
+	if uri := os.Getenv("MONGO_URI"); uri != "" {
+		if st, err := store.NewCheckStore(ctx, uri, envOr("MONGO_DB", "sitemon")); err != nil {
+			logger.Log.Warn().Err(err).Msg("gateway: Mongo unavailable, history disabled")
+		} else {
+			checks = st
+			defer checks.Close(ctx)
+		}
+	}
+
+	rm := readmodel.New(redis, checks)
+
 	var b *bus.Bus
 	if url := os.Getenv("NATS_URL"); url != "" {
-		conn, err := bus.Connect(url)
-		if err != nil {
+		if conn, err := bus.Connect(url); err != nil {
 			logger.Log.Warn().Err(err).Msg("gateway: NATS unavailable, running in-process")
 		} else {
 			b = conn
 			defer b.Close()
-			subscribeResults(b, cache)
+			subscribeResults(b, rm)
 			logger.Log.Info().Msg("gateway: connected to NATS (distributed mode)")
 		}
-	} else {
-		logger.Log.Info().Msg("gateway: NATS_URL unset, running in-process")
 	}
 
 	svc := service.New(b)
 
 	addr := health.AddrFromEnv(":8080")
-	if err := server.Run(svc, cache, addr); err != nil {
+	if err := server.Run(svc, rm, addr); err != nil {
 		logger.Log.Fatal().Err(err).Msg("gateway exited with error")
 	}
 }
 
-// subscribeResults feeds check.result events into the status cache.
-func subscribeResults(b *bus.Bus, cache *statuscache.Cache) {
+func subscribeResults(b *bus.Bus, rm *readmodel.ReadModel) {
 	if err := b.EnsureStream(context.Background()); err != nil {
 		logger.Log.Warn().Err(err).Msg("gateway: ensure stream")
 		return
@@ -65,10 +77,17 @@ func subscribeResults(b *bus.Bus, cache *statuscache.Cache) {
 		if err := json.Unmarshal(data, &r); err != nil {
 			return err
 		}
-		cache.Put(r)
+		rm.PutResult(context.Background(), r)
 		return nil
 	})
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("gateway: subscribe check.result")
 	}
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
