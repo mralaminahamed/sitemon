@@ -26,6 +26,7 @@ metadata:
 type: Opaque
 stringData:
   ANTHROPIC_API_KEY: ""
+  GATEWAY_API_KEY: ""
   WEBHOOK_URL: ""
 ---
 # --- backing stores (ephemeral; use managed services or StatefulSets in prod) ---

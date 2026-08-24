@@ -51,6 +51,7 @@ services:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       MONGO_URI: mongodb://mongo:27017/sitemon
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:-}
 
   checker:
     <<: *svc
