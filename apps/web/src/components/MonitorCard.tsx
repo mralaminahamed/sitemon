@@ -32,7 +32,7 @@ export function MonitorCard({ result, onDelete }: {
             e.preventDefault();
             onDelete(result.url);
           }}
-          className="absolute bottom-3 right-3 rounded p-1 text-muted opacity-0 transition hover:text-down group-hover:opacity-100"
+          className="absolute bottom-3 right-3 rounded p-1 text-muted opacity-0 transition hover:text-down focus-visible:opacity-100 group-hover:opacity-100"
           aria-label="Remove monitor"
         >
           <Trash2 size={14} />

@@ -1,12 +1,14 @@
 import { Moon, Search, Sun } from "lucide-react";
 import { useStatus } from "../lib/hooks";
 import { useUI } from "../lib/store";
+import { useConn } from "../lib/conn";
 import { isDown } from "../lib/format";
 import { StatusDot } from "./StatusDot";
 
 export function TopBar() {
   const { data } = useStatus();
   const { theme, toggleTheme, setCmdk } = useUI();
+  const connected = useConn((s) => s.connected);
   const results = data?.results ?? [];
   const down = results.filter((r) => isDown(r.status)).length;
   const overall = results.length === 0 ? "UNKNOWN" : down > 0 ? "DOWN" : "UP";
@@ -22,6 +24,9 @@ export function TopBar() {
               ? `${down} of ${results.length} down`
               : `all ${results.length} operational`}
         </span>
+        {!connected && (
+          <span className="font-mono text-[10px] uppercase tracking-wide text-warn">reconnecting…</span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
