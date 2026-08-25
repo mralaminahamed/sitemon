@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { HealthResult } from "./types";
 import { getApiKey } from "./api";
 import { useToasts } from "./toast";
+import { useConn } from "./conn";
 import { isDown } from "./format";
 
 interface Msg {
@@ -24,11 +25,26 @@ export function useStatusStream() {
     const qs = key ? `?api_key=${encodeURIComponent(key)}` : "";
     let sock: WebSocket;
     let closed = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const setConnected = useConn.getState().setConnected;
 
     const connect = () => {
       sock = new WebSocket(`${proto}://${location.host}/ws${qs}`);
+      sock.onopen = () => {
+        attempt = 0;
+        setConnected(true);
+      };
+      sock.onerror = () => {
+        // Surfaced via onclose, which schedules the retry.
+      };
       sock.onmessage = (e) => {
-        const msg: Msg = JSON.parse(e.data);
+        let msg: Msg;
+        try {
+          msg = JSON.parse(e.data);
+        } catch {
+          return; // ignore malformed frames rather than throwing
+        }
         if (msg.type === "snapshot") {
           qc.setQueryData<Cache>(["status"], { results: msg.results ?? [] });
         } else if (msg.type === "result" && msg.result) {
@@ -51,13 +67,20 @@ export function useStatusStream() {
         }
       };
       sock.onclose = () => {
-        if (!closed) setTimeout(connect, 3000);
+        setConnected(false);
+        if (closed) return;
+        // Exponential backoff with jitter, capped at 30s, so a downed gateway
+        // isn't hammered with a reconnect every 3s.
+        const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.random() * 1000;
+        attempt++;
+        timer = setTimeout(connect, delay);
       };
     };
     connect();
 
     return () => {
       closed = true;
+      clearTimeout(timer);
       sock?.close();
     };
   }, [qc, push]);

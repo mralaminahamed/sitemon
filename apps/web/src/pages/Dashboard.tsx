@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useAddMonitor, useDeleteMonitor, useMonitors, useStatus } from "../lib/hooks";
 import type { HealthResult } from "../lib/types";
 import { isDown } from "../lib/format";
+import { useToasts } from "../lib/toast";
 import { KpiStat } from "../components/KpiStat";
 import { MonitorCard } from "../components/MonitorCard";
 import { Button } from "../components/Button";
@@ -14,8 +15,16 @@ export function Dashboard() {
   const monitors = useMonitors();
   const addMon = useAddMonitor();
   const delMon = useDeleteMonitor();
+  const push = useToasts((s) => s.push);
   const [url, setUrl] = useState("");
   const [filter, setFilter] = useState("");
+
+  const remove = (u: string) => {
+    if (!window.confirm(`Stop monitoring ${u.replace(/^https?:\/\//, "")}?`)) return;
+    delMon.mutate(u, {
+      onError: (e) => push({ title: "Delete failed", detail: (e as Error).message, tone: "down" }),
+    });
+  };
 
   const results = status.data?.results ?? [];
   const byUrl = new Map(results.map((r) => [r.url, r]));
@@ -54,6 +63,8 @@ export function Dashboard() {
     if (v) addMon.mutate(v, { onSuccess: () => setUrl("") });
   };
 
+  const loadError = (status.error || monitors.error) as Error | null;
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -77,15 +88,22 @@ export function Dashboard() {
       </div>
 
       {addMon.error && <p className="mb-3 text-sm text-down">{(addMon.error as Error).message}</p>}
+      {loadError && (
+        <p className="mb-3 text-sm text-down">Couldn't reach the API: {loadError.message}</p>
+      )}
 
       {status.isLoading && monitors.isLoading ? (
         <Spinner label="Loading monitors…" />
       ) : rows.length === 0 ? (
-        <Empty>No monitors yet. Add a URL above to start watching it.</Empty>
+        <Empty>
+          {loadError
+            ? "Couldn't load monitors. Retrying…"
+            : "No monitors yet. Add a URL above to start watching it."}
+        </Empty>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((r) => (
-            <MonitorCard key={r.url} result={r} onDelete={(u) => delMon.mutate(u)} />
+            <MonitorCard key={r.url} result={r} onDelete={remove} />
           ))}
         </div>
       )}
