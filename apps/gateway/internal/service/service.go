@@ -61,6 +61,16 @@ func (s *Service) checkInProcess(urls []string, timeout time.Duration, bypassCF 
 	return monitor.NewHealthChecker(client).CheckMultiple(urls)
 }
 
+// KickCheck publishes an immediate check.job so a newly added monitor is checked
+// without waiting for the next scheduler tick. Requires the bus; returns ErrNoBus
+// in-process (caller should fall back to a direct check).
+func (s *Service) KickCheck(ctx context.Context, url string) error {
+	if s.bus == nil {
+		return ErrNoBus
+	}
+	return s.bus.Publish(ctx, bus.SubjectCheckJob, bus.CheckJob{URL: normalizeOne(url)})
+}
+
 // Analyze asks the ai service for an incident analysis of url. Requires the
 // bus (distributed mode); returns an error otherwise.
 func (s *Service) Analyze(url string, limit int) (map[string]any, error) {

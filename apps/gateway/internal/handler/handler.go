@@ -3,6 +3,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -107,6 +108,7 @@ func (h *Handler) AddMonitor(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{Error: err.Error()})
 	}
+	h.kickCheck(url)
 	return c.JSON(http.StatusCreated, m)
 }
 
@@ -217,6 +219,21 @@ func (h *Handler) LoadTest(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, dto.FromRequestStats(stats))
+}
+
+// kickCheck runs a first check for a new monitor in the background so it shows up
+// immediately. Prefers the bus (normal pipeline → live broadcast); falls back to
+// an in-process check when there is no bus.
+func (h *Handler) kickCheck(url string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := h.svc.KickCheck(ctx, url); err != nil {
+			for _, r := range h.svc.CheckURLs([]string{url}, 10*time.Second, false) {
+				h.rm.PutResult(ctx, r)
+			}
+		}
+	}()
 }
 
 func badRequest(c echo.Context, msg string) error {
