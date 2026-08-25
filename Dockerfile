@@ -26,6 +26,7 @@ RUN go build -trimpath -o /out/app ./apps/${SVC}/cmd
 
 # ---- prod: minimal runtime --------------------------------------------------
 FROM alpine:3.20 AS prod
-RUN apk add --no-cache ca-certificates wget
+RUN apk add --no-cache ca-certificates wget && adduser -D -u 10001 app
 COPY --from=build /out/app /usr/local/bin/app
+USER app
 ENTRYPOINT ["/usr/local/bin/app"]
