@@ -1,12 +1,20 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
 
 scrape_configs:
   - job_name: sitemon
     static_configs:
-      - targets:
-          - "gateway:8080"   # HTTP RED
-          - "checker:8081"   # checks_total, check_duration
-          - "scheduler:8082" # jobs_dispatched
-          - "notifier:8083"  # alerts_total
-          - "ai:8090"        # go runtime
+      - targets: ["gateway:8080"]
+        labels: { service: gateway }
+      - targets: ["checker:8081"]
+        labels: { service: checker }
+      - targets: ["scheduler:8082"]
+        labels: { service: scheduler }
+      - targets: ["notifier:8083"]
+        labels: { service: notifier }
+      - targets: ["ai:8090"]
+        labels: { service: ai }

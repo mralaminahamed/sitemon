@@ -1,0 +1,53 @@
+groups:
+  - name: sitemon-platform
+    rules:
+      - alert: ServiceDown
+        expr: up{job="sitemon"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} is down"
+          description: "Prometheus can't scrape {{ $labels.service }} ({{ $labels.instance }}) for 1m."
+
+      - alert: GatewayHighErrorRate
+        expr: |
+          sum(rate(sitemon_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(sitemon_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway 5xx error rate above 5%"
+          description: "5xx responses are {{ $value | humanizePercentage }} of gateway traffic over 5m."
+
+      - alert: GatewayHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(sitemon_http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway p95 latency above 1s"
+          description: "Gateway p95 request latency is {{ $value | humanizeDuration }} over 10m."
+
+      - alert: HighCheckFailureRate
+        expr: |
+          sum(rate(sitemon_checks_total{status!="UP"}[10m]))
+            / sum(rate(sitemon_checks_total[10m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Over half of monitored sites are failing checks"
+          description: "Non-UP checks are {{ $value | humanizePercentage }} of all checks over 10m."
+
+      - alert: HighCheckLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(sitemon_check_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Check p95 latency above 5s"
+          description: "The checker's p95 probe time is {{ $value | humanizeDuration }} over 10m."
