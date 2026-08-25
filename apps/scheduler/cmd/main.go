@@ -19,6 +19,7 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/bus"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
+	"github.com/mralaminahamed/sitemon/packages/shared/metrics"
 	"github.com/mralaminahamed/sitemon/packages/shared/scheduler"
 	"github.com/mralaminahamed/sitemon/packages/shared/store"
 )
@@ -134,6 +135,7 @@ func dispatch(b *bus.Bus, urls []string, timeoutMs int, bypassCF bool) {
 			logger.Log.Error().Err(err).Str("url", u).Msg("publish check.job")
 			continue
 		}
+		metrics.JobsDispatched.Inc()
 		logger.Log.Debug().Str("url", u).Msg("check.job published")
 	}
 }

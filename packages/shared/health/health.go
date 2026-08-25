@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Check is a named dependency probe.
@@ -21,6 +23,7 @@ func Serve(service, addr string, checks ...Check) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", LivenessHandler(service))
 	mux.HandleFunc("/ready", ReadyHandler(service, checks...))
+	mux.Handle("/metrics", promhttp.Handler())
 	return http.ListenAndServe(addr, mux)
 }
 

@@ -2,6 +2,11 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: sitemon-gateway
+  - job_name: sitemon
     static_configs:
-      - targets: ["gateway:8080"]
+      - targets:
+          - "gateway:8080"   # HTTP RED
+          - "checker:8081"   # checks_total, check_duration
+          - "scheduler:8082" # jobs_dispatched
+          - "notifier:8083"  # alerts_total
+          - "ai:8090"        # go runtime
