@@ -20,10 +20,11 @@ import (
 // Load-test hard ceilings — protect the platform from being used to hammer a
 // target with unbounded workers/rps/count/duration.
 const (
-	maxWorkers  = 500
-	maxRPS      = 5000
-	maxCount    = 1_000_000
-	maxDuration = 10 * time.Minute
+	maxWorkers   = 500
+	maxRPS       = 5000
+	maxCount     = 1_000_000
+	maxDuration  = 10 * time.Minute
+	maxCheckURLs = 100 // per /checks request
 )
 
 type Handler struct {
@@ -74,7 +75,7 @@ func (h *Handler) Status(c echo.Context) error {
 // History returns stored check history, optionally filtered by ?url=.
 func (h *Handler) History(c echo.Context) error {
 	limit, _ := strconv.ParseInt(c.QueryParam("limit"), 10, 64)
-	results, err := h.rm.History(c.Request().Context(), c.QueryParam("url"), limit)
+	results, err := h.rm.History(c.Request().Context(), normalizeURL(c.QueryParam("url")), limit)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
@@ -115,7 +116,7 @@ func (h *Handler) AddMonitor(c echo.Context) error {
 
 // DeleteMonitor removes a tracked URL (?url=).
 func (h *Handler) DeleteMonitor(c echo.Context) error {
-	url := c.QueryParam("url")
+	url := normalizeURL(c.QueryParam("url"))
 	if url == "" {
 		return badRequest(c, "url query parameter is required")
 	}
@@ -128,7 +129,7 @@ func (h *Handler) DeleteMonitor(c echo.Context) error {
 // Alerts returns recent alert history, optionally filtered by ?url=.
 func (h *Handler) Alerts(c echo.Context) error {
 	limit, _ := strconv.ParseInt(c.QueryParam("limit"), 10, 64)
-	alerts, err := h.rm.Alerts(c.Request().Context(), c.QueryParam("url"), limit)
+	alerts, err := h.rm.Alerts(c.Request().Context(), normalizeURL(c.QueryParam("url")), limit)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
@@ -154,7 +155,7 @@ func (h *Handler) Analyze(c echo.Context) error {
 
 // Stats returns aggregate uptime/latency for ?url=.
 func (h *Handler) Stats(c echo.Context) error {
-	st, err := h.rm.Stats(c.Request().Context(), c.QueryParam("url"))
+	st, err := h.rm.Stats(c.Request().Context(), normalizeURL(c.QueryParam("url")))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 	}
@@ -169,6 +170,9 @@ func (h *Handler) Checks(c echo.Context) error {
 	}
 	if len(req.URLs) == 0 {
 		return badRequest(c, "at least one url is required")
+	}
+	if len(req.URLs) > maxCheckURLs {
+		return badRequest(c, "too many urls in one request")
 	}
 	for _, u := range req.URLs {
 		if err := urlguard.Check(u); err != nil {
