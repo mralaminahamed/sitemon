@@ -56,6 +56,13 @@ func (rm *ReadModel) Stats(ctx context.Context, url string) (store.Stats, error)
 	return rm.store.Stats(ctx, url)
 }
 
+func (rm *ReadModel) Alerts(ctx context.Context, url string, limit int64) ([]store.Alert, error) {
+	if rm.store == nil {
+		return []store.Alert{}, nil
+	}
+	return rm.store.Alerts(ctx, url, limit)
+}
+
 // ErrNoStore is returned by monitor writes when Mongo is not configured.
 var ErrNoStore = errors.New("monitors require MongoDB (MONGO_URI)")
 

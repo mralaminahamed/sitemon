@@ -18,6 +18,16 @@ type CheckStore struct {
 	client   *mongo.Client
 	col      *mongo.Collection
 	monitors *mongo.Collection
+	alerts   *mongo.Collection
+}
+
+// Alert is a persisted alert-history record (the consumed alert.raised event).
+type Alert struct {
+	URL        string    `json:"url" bson:"url"`
+	Status     string    `json:"status" bson:"status"`
+	StatusCode int       `json:"status_code" bson:"status_code"`
+	Type       string    `json:"type" bson:"type"`
+	Timestamp  time.Time `json:"timestamp" bson:"timestamp"`
 }
 
 // Monitor is a tracked URL. _id is the URL, so adds are idempotent.
@@ -48,7 +58,43 @@ func NewCheckStore(ctx context.Context, uri, db string) (*CheckStore, error) {
 	_, _ = col.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{{Key: "url", Value: 1}, {Key: "timestamp", Value: -1}},
 	})
-	return &CheckStore{client: client, col: col, monitors: db2.Collection("monitors")}, nil
+	alerts := db2.Collection("alerts")
+	_, _ = alerts.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "url", Value: 1}, {Key: "timestamp", Value: -1}},
+	})
+	return &CheckStore{client: client, col: col, monitors: db2.Collection("monitors"), alerts: alerts}, nil
+}
+
+// SaveAlert appends an alert to the history collection.
+func (s *CheckStore) SaveAlert(ctx context.Context, a Alert) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	_, err := s.alerts.InsertOne(ctx, a)
+	return err
+}
+
+// Alerts returns recent alerts, newest first, optionally filtered by url.
+func (s *CheckStore) Alerts(ctx context.Context, url string, limit int64) ([]Alert, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	filter := bson.M{}
+	if url != "" {
+		filter["url"] = url
+	}
+	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}}).SetLimit(limit)
+	cur, err := s.alerts.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	out := []Alert{}
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *CheckStore) AddMonitor(ctx context.Context, url string) (Monitor, error) {

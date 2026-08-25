@@ -71,6 +71,7 @@ func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...h
 	api.GET("/monitors", h.Monitors)
 	api.POST("/monitors", h.AddMonitor)
 	api.DELETE("/monitors", h.DeleteMonitor)
+	api.GET("/alerts", h.Alerts)
 	api.GET("/analyze", h.Analyze)
 	api.POST("/checks", h.Checks)
 	api.GET("/ssl", h.SSL)
