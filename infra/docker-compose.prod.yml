@@ -65,6 +65,8 @@ services:
     environment:
       PORT: "8082"
       NATS_URL: nats://nats:4222
+      # Needed to dispatch monitors added via the API/web, not just SCHEDULE_URLS.
+      MONGO_URI: mongodb://mongo:27017/sitemon
       SCHEDULE_CRON: ${SCHEDULE_CRON:-*/5 * * * *}
       SCHEDULE_URLS: ${SCHEDULE_URLS:-https://example.com}
 
