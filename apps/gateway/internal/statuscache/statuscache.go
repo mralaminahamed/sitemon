@@ -27,6 +27,13 @@ func (c *Cache) Put(r models.HealthResult) {
 	c.mu.Unlock()
 }
 
+// Delete drops a URL from the cache (e.g. when its monitor is removed).
+func (c *Cache) Delete(url string) {
+	c.mu.Lock()
+	delete(c.latest, url)
+	c.mu.Unlock()
+}
+
 // Snapshot returns all latest results, sorted by URL.
 func (c *Cache) Snapshot() []models.HealthResult {
 	c.mu.RLock()

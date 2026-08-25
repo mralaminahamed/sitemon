@@ -8,6 +8,7 @@ import (
 
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/statuscache"
 	"github.com/mralaminahamed/sitemon/packages/shared/cache"
+	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
 	"github.com/mralaminahamed/sitemon/packages/shared/store"
 )
@@ -24,12 +25,16 @@ func New(r *cache.Redis, st *store.CheckStore) *ReadModel {
 
 func (rm *ReadModel) PutResult(ctx context.Context, res models.HealthResult) {
 	if rm.redis != nil {
-		_ = rm.redis.StatusPut(ctx, res)
+		if err := rm.redis.StatusPut(ctx, res); err != nil {
+			logger.Log.Error().Err(err).Str("url", res.URL).Msg("readmodel: status cache write")
+		}
 	} else {
 		rm.mem.Put(res)
 	}
 	if rm.store != nil {
-		_ = rm.store.Save(ctx, res)
+		if err := rm.store.Save(ctx, res); err != nil {
+			logger.Log.Error().Err(err).Str("url", res.URL).Msg("readmodel: history write")
+		}
 	}
 }
 
@@ -84,5 +89,16 @@ func (rm *ReadModel) DeleteMonitor(ctx context.Context, url string) error {
 	if rm.store == nil {
 		return ErrNoStore
 	}
-	return rm.store.DeleteMonitor(ctx, url)
+	if err := rm.store.DeleteMonitor(ctx, url); err != nil {
+		return err
+	}
+	// Clear the read model too, or the deleted URL lingers in GET /api/status.
+	if rm.redis != nil {
+		if err := rm.redis.StatusDelete(ctx, url); err != nil {
+			logger.Log.Error().Err(err).Str("url", url).Msg("readmodel: clear status on delete")
+		}
+	} else {
+		rm.mem.Delete(url)
+	}
+	return nil
 }

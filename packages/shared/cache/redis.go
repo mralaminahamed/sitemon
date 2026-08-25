@@ -105,4 +105,15 @@ func (r *Redis) SaveAlertState(ctx context.Context, url string, s AlertState) er
 	return r.c.Set(ctx, lastStatusNS+url, data, 0).Err()
 }
 
+// StatusDelete removes a URL's cached latest status and notifier state, so a
+// deleted monitor stops appearing in the status snapshot.
+func (r *Redis) StatusDelete(ctx context.Context, url string) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	if err := r.c.HDel(ctx, statusKey, url).Err(); err != nil {
+		return err
+	}
+	return r.c.Del(ctx, lastStatusNS+url).Err()
+}
+
 func (r *Redis) Close() error { return r.c.Close() }
