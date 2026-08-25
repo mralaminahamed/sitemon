@@ -75,8 +75,10 @@ func (s *CheckStore) SaveAlert(ctx context.Context, a Alert) error {
 
 // Alerts returns recent alerts, newest first, optionally filtered by url.
 func (s *CheckStore) Alerts(ctx context.Context, url string, limit int64) ([]Alert, error) {
-	if limit <= 0 || limit > 1000 {
+	if limit <= 0 {
 		limit = 100
+	} else if limit > 1000 {
+		limit = 1000
 	}
 	ctx, cancel := context.WithTimeout(ctx, opTimeout)
 	defer cancel()
@@ -166,6 +168,8 @@ func (s *CheckStore) History(ctx context.Context, url string, limit int64) ([]mo
 	}
 	if limit <= 0 {
 		limit = 100
+	} else if limit > 1000 {
+		limit = 1000
 	}
 	ctx, cancel := context.WithTimeout(ctx, opTimeout)
 	defer cancel()
