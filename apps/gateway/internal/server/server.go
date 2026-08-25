@@ -13,6 +13,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
+
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/auth"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/handler"
 	"github.com/mralaminahamed/sitemon/apps/gateway/internal/metrics"
@@ -23,6 +25,9 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
 )
 
+// rateLimitPerSec is the per-IP request ceiling (memory store).
+const rateLimitPerSec = 20
+
 // New builds a configured Echo instance with middleware and routes.
 func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...health.Check) *echo.Echo {
 	e := echo.New()
@@ -31,7 +36,14 @@ func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...h
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
+	// Log the path, not the full URI — the WS handshake carries the API key as a
+	// ?api_key= query param, which must not land in access logs.
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: `{"time":"${time_rfc3339}","id":"${id}","method":"${method}","path":"${path}",` +
+			`"status":${status},"latency":"${latency_human}","error":"${error}"}` + "\n",
+	}))
+	e.Use(middleware.BodyLimit("1M"))
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(rateLimitPerSec))))
 	e.Use(metrics.Middleware())
 	// Restrict CORS to CORS_ORIGINS (comma-separated) when set; otherwise allow
 	// all for local dev, with a warning so prod isn't left open by accident.
@@ -84,6 +96,12 @@ func New(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, checks ...h
 // gracefully.
 func Run(svc *service.Service, rm *readmodel.ReadModel, hub *ws.Hub, addr string, checks ...health.Check) error {
 	e := New(svc, rm, hub, checks...)
+
+	// Slowloris / slow-read protection. WriteTimeout is left unset so long-running
+	// /loadtest responses (up to 10m) are not cut off.
+	e.Server.ReadHeaderTimeout = 10 * time.Second
+	e.Server.ReadTimeout = 30 * time.Second
+	e.Server.IdleTimeout = 120 * time.Second
 
 	go func() {
 		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
