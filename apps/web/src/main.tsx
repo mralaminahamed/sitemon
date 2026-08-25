@@ -18,23 +18,28 @@ import { MonitorDetail } from "./pages/MonitorDetail";
 import { LoadTest } from "./pages/LoadTest";
 import { SslInspector } from "./pages/SslInspector";
 import { Settings } from "./pages/Settings";
+import { NotFound, RouteError } from "./components/ErrorBoundary";
 import { applyTheme, useUI } from "./lib/store";
 import "./index.css";
 
 applyTheme(useUI.getState().theme);
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: false } },
+});
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: "monitors/:url", element: <MonitorDetail /> },
       { path: "loadtest", element: <LoadTest /> },
       { path: "ssl", element: <SslInspector /> },
       { path: "settings", element: <Settings /> },
+      { path: "*", element: <NotFound /> },
     ],
   },
 ]);

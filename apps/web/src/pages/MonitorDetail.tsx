@@ -12,8 +12,9 @@ import { Button } from "../components/Button";
 import { Empty, Spinner } from "../components/Spinner";
 
 export function MonitorDetail() {
-  const { url = "" } = useParams();
-  const target = decodeURIComponent(url);
+  // React Router already decodes path params — decoding again throws URIError on
+  // any URL containing a literal '%'.
+  const { url: target = "" } = useParams();
   const [tab, setTab] = useState("overview");
 
   return (
@@ -50,9 +51,11 @@ function Overview({ url }: { url: string }) {
     ms: r.response_time_ms,
   }));
   const s = stats.data;
+  const err = (history.error || stats.error) as Error | null;
 
   return (
     <div className="flex flex-col gap-4">
+      {err && <p className="text-sm text-down">Couldn't load metrics: {err.message}</p>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiStat label="Checks" value={s ? String(s.total_checks) : "—"} />
         <KpiStat label="Uptime" value={s ? `${s.uptime_percentage.toFixed(1)}%` : "—"} accent="var(--color-up)" />
