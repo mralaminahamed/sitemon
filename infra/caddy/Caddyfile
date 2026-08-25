@@ -1,10 +1,14 @@
 # Sitemon — reverse proxy (prod). Fronts the gateway + web app.
-{
-	auto_https off
-}
-
-:80 {
+#
+# SITE_ADDRESS controls TLS: a bare port like :80 serves plain HTTP (local);
+# a domain (e.g. sitemon.example.com) makes Caddy auto-provision HTTPS.
+{$SITE_ADDRESS::80} {
 	handle /api/* {
+		reverse_proxy gateway:8080
+	}
+	# WebSocket live status — the gateway serves /ws at the root, so it must be
+	# routed to the gateway, not the web container (Caddy upgrades automatically).
+	handle /ws {
 		reverse_proxy gateway:8080
 	}
 	handle {
