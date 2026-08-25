@@ -25,6 +25,7 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/cache"
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
+	"github.com/mralaminahamed/sitemon/packages/shared/metrics"
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
 	"github.com/mralaminahamed/sitemon/packages/shared/notify"
 	"github.com/mralaminahamed/sitemon/packages/shared/store"
@@ -137,6 +138,7 @@ func main() {
 			return nil
 		}
 
+		metrics.AlertsTotal.WithLabelValues(alertType).Inc()
 		logger.Log.Info().Str("url", result.URL).Str("status", result.Status).
 			Str("type", alertType).Msg("alert fired")
 

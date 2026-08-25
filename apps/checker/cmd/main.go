@@ -19,6 +19,7 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/loadtest"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
+	"github.com/mralaminahamed/sitemon/packages/shared/metrics"
 	"github.com/mralaminahamed/sitemon/packages/shared/urlguard"
 )
 
@@ -45,7 +46,10 @@ func main() {
 		if err := urlguard.Check(req.URL); err != nil {
 			return nil, err
 		}
-		return engine.Check(req.URL, time.Duration(req.TimeoutMs)*time.Millisecond, req.BypassCloudflare), nil
+		start := time.Now()
+		res := engine.Check(req.URL, time.Duration(req.TimeoutMs)*time.Millisecond, req.BypassCloudflare)
+		metrics.ObserveCheck(res.Status, time.Since(start))
+		return res, nil
 	})
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("checker: subscribe run")
@@ -90,7 +94,9 @@ func main() {
 			logger.Log.Warn().Err(err).Str("url", job.URL).Msg("checker: rejecting unsafe job target")
 			return errors.Join(bus.ErrDrop, err)
 		}
+		start := time.Now()
 		result := engine.Check(job.URL, time.Duration(job.TimeoutMs)*time.Millisecond, job.BypassCloudflare)
+		metrics.ObserveCheck(result.Status, time.Since(start))
 
 		pctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
