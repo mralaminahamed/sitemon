@@ -18,6 +18,9 @@ x-svc: &svc
 services:
   mongo:
     image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-sitemon}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-sitemon}
     volumes: [mongo-data:/data/db]
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
@@ -29,15 +32,21 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass ${REDIS_PASSWORD:-sitemon} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes: [redis-data:/data]
-    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 10 }
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sitemon}
     restart: unless-stopped
     networks: [sitemon-net]
 
   nats:
     image: nats:2-alpine
-    command: ["-js", "-m", "8222"]
+    command: ["-js", "-m", "8222", "--user", "${NATS_USER:-sitemon}", "--pass", "${NATS_PASSWORD:-sitemon}"]
     volumes: [nats-data:/data]
     healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"], interval: 5s, timeout: 3s, retries: 10 }
     restart: unless-stopped
@@ -48,25 +57,27 @@ services:
     image: ghcr.io/mralaminahamed/sitemon/gateway:${IMAGE_TAG:-latest}
     environment:
       PORT: "8080"
-      NATS_URL: nats://nats:4222
-      REDIS_URL: redis://redis:6379/0
-      MONGO_URI: mongodb://mongo:27017/sitemon
+      NATS_URL: nats://${NATS_USER:-sitemon}:${NATS_PASSWORD:-sitemon}@nats:4222
+      REDIS_URL: redis://:${REDIS_PASSWORD:-sitemon}@redis:6379/0
+      MONGO_URI: mongodb://${MONGO_USER:-sitemon}:${MONGO_PASSWORD:-sitemon}@mongo:27017/sitemon?authSource=admin
       GATEWAY_API_KEY: ${GATEWAY_API_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
   checker:
     <<: *svc
     image: ghcr.io/mralaminahamed/sitemon/checker:${IMAGE_TAG:-latest}
-    environment: { PORT: "8081", NATS_URL: nats://nats:4222 }
+    environment:
+      PORT: "8081"
+      NATS_URL: nats://${NATS_USER:-sitemon}:${NATS_PASSWORD:-sitemon}@nats:4222
 
   scheduler:
     <<: *svc
     image: ghcr.io/mralaminahamed/sitemon/scheduler:${IMAGE_TAG:-latest}
     environment:
       PORT: "8082"
-      NATS_URL: nats://nats:4222
+      NATS_URL: nats://${NATS_USER:-sitemon}:${NATS_PASSWORD:-sitemon}@nats:4222
       # Needed to dispatch monitors added via the API/web, not just SCHEDULE_URLS.
-      MONGO_URI: mongodb://mongo:27017/sitemon
+      MONGO_URI: mongodb://${MONGO_USER:-sitemon}:${MONGO_PASSWORD:-sitemon}@mongo:27017/sitemon?authSource=admin
       SCHEDULE_CRON: ${SCHEDULE_CRON:-*/5 * * * *}
       SCHEDULE_URLS: ${SCHEDULE_URLS:-https://example.com}
 
@@ -75,9 +86,9 @@ services:
     image: ghcr.io/mralaminahamed/sitemon/notifier:${IMAGE_TAG:-latest}
     environment:
       PORT: "8083"
-      NATS_URL: nats://nats:4222
-      REDIS_URL: redis://redis:6379/0
-      MONGO_URI: mongodb://mongo:27017/sitemon
+      NATS_URL: nats://${NATS_USER:-sitemon}:${NATS_PASSWORD:-sitemon}@nats:4222
+      REDIS_URL: redis://:${REDIS_PASSWORD:-sitemon}@redis:6379/0
+      MONGO_URI: mongodb://${MONGO_USER:-sitemon}:${MONGO_PASSWORD:-sitemon}@mongo:27017/sitemon?authSource=admin
       WEBHOOK_URL: ${WEBHOOK_URL:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       ALERT_FAILURE_THRESHOLD: ${ALERT_FAILURE_THRESHOLD:-2}
@@ -87,8 +98,8 @@ services:
     image: ghcr.io/mralaminahamed/sitemon/ai:${IMAGE_TAG:-latest}
     environment:
       PORT: "8090"
-      NATS_URL: nats://nats:4222
-      MONGO_URI: mongodb://mongo:27017/sitemon
+      NATS_URL: nats://${NATS_USER:-sitemon}:${NATS_PASSWORD:-sitemon}@nats:4222
+      MONGO_URI: mongodb://${MONGO_USER:-sitemon}:${MONGO_PASSWORD:-sitemon}@mongo:27017/sitemon?authSource=admin
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
 
   web:
@@ -100,6 +111,9 @@ services:
   caddy:
     image: caddy:2-alpine
     ports: ["80:80", "443:443"]
+    environment:
+      # Bare port (:80) = HTTP; a domain = automatic HTTPS via Caddy.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
