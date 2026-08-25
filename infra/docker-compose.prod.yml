@@ -73,7 +73,14 @@ services:
   notifier:
     <<: *svc
     image: ghcr.io/mralaminahamed/sitemon/notifier:${IMAGE_TAG:-latest}
-    environment: { PORT: "8083", NATS_URL: nats://nats:4222, REDIS_URL: redis://redis:6379/0 }
+    environment:
+      PORT: "8083"
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      MONGO_URI: mongodb://mongo:27017/sitemon
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ALERT_FAILURE_THRESHOLD: ${ALERT_FAILURE_THRESHOLD:-2}
 
   ai:
     <<: *svc

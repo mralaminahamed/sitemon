@@ -50,6 +50,7 @@ func (h *Handler) Root(c echo.Context) error {
 			"GET  /api/status",
 			"GET  /api/history?url=&limit=",
 			"GET  /api/stats?url=",
+			"GET  /api/alerts?url=&limit=",
 			"GET  /api/analyze?url=",
 			"GET  /api/monitors",
 			"POST /api/monitors",
@@ -122,6 +123,16 @@ func (h *Handler) DeleteMonitor(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{Error: err.Error()})
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// Alerts returns recent alert history, optionally filtered by ?url=.
+func (h *Handler) Alerts(c echo.Context) error {
+	limit, _ := strconv.ParseInt(c.QueryParam("limit"), 10, 64)
+	alerts, err := h.rm.Alerts(c.Request().Context(), c.QueryParam("url"), limit)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"alerts": alerts})
 }
 
 // Analyze returns an AI incident analysis for ?url=.

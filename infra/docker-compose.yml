@@ -162,7 +162,12 @@ services:
       PORT: "8083"
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
+      # Persists alert history (alerts collection).
+      MONGO_URI: mongodb://sitemon:sitemon@mongo:27017/sitemon?authSource=admin
+      MONGO_DB: ${MONGO_DB:-sitemon}
       WEBHOOK_URL: ${WEBHOOK_URL:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ALERT_FAILURE_THRESHOLD: ${ALERT_FAILURE_THRESHOLD:-2}
 
   web:
     image: node:24-alpine
