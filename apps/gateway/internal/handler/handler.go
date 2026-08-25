@@ -17,15 +17,10 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/urlguard"
 )
 
-// Load-test hard ceilings — protect the platform from being used to hammer a
-// target with unbounded workers/rps/count/duration.
-const (
-	maxWorkers   = 500
-	maxRPS       = 5000
-	maxCount     = 1_000_000
-	maxDuration  = 10 * time.Minute
-	maxCheckURLs = 100 // per /checks request
-)
+// Load-test ceilings live in the loadtest package (loadtest.Clamp) so the
+// checker enforces the same limits on the bus path. maxCheckURLs bounds a single
+// /checks request's fan-out at the edge.
+const maxCheckURLs = 100
 
 type Handler struct {
 	svc *service.Service
@@ -219,14 +214,15 @@ func (h *Handler) LoadTest(c echo.Context) error {
 	opts := loadtest.Options{
 		URL:      req.URL,
 		Method:   req.Method,
-		Workers:  clamp(req.Workers, maxWorkers),
-		RPS:      clamp(req.RPS, maxRPS),
-		Count:    clamp(req.Count, maxCount),
-		Duration: clampDur(time.Duration(req.DurationMs)*time.Millisecond, maxDuration),
+		Workers:  req.Workers,
+		RPS:      req.RPS,
+		Count:    req.Count,
+		Duration: time.Duration(req.DurationMs) * time.Millisecond,
 		Timeout:  msOr(req.TimeoutMs, 10*time.Second),
 		Headers:  req.Headers,
 		BypassCF: req.BypassCloudflare,
 	}
+	opts.Clamp()
 
 	// Bind the run to the request context so a client disconnect stops it.
 	stats, err := h.svc.LoadTest(c.Request().Context(), opts)
@@ -271,18 +267,4 @@ func normalizeURL(u string) string {
 		return "https://" + u
 	}
 	return u
-}
-
-func clamp(v, max int) int {
-	if v > max {
-		return max
-	}
-	return v
-}
-
-func clampDur(v, max time.Duration) time.Duration {
-	if v > max {
-		return max
-	}
-	return v
 }

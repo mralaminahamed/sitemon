@@ -19,6 +19,7 @@ import (
 	"github.com/mralaminahamed/sitemon/packages/shared/health"
 	"github.com/mralaminahamed/sitemon/packages/shared/loadtest"
 	"github.com/mralaminahamed/sitemon/packages/shared/logger"
+	"github.com/mralaminahamed/sitemon/packages/shared/urlguard"
 )
 
 func main() {
@@ -41,6 +42,9 @@ func main() {
 		if err := json.Unmarshal(data, &req); err != nil {
 			return nil, err
 		}
+		if err := urlguard.Check(req.URL); err != nil {
+			return nil, err
+		}
 		return engine.Check(req.URL, time.Duration(req.TimeoutMs)*time.Millisecond, req.BypassCloudflare), nil
 	})
 	if err != nil {
@@ -54,7 +58,10 @@ func main() {
 		if err := json.Unmarshal(data, &req); err != nil {
 			return nil, err
 		}
-		return engine.LoadTest(context.Background(), loadtest.Options{
+		if err := urlguard.Check(req.URL); err != nil {
+			return nil, err
+		}
+		opts := loadtest.Options{
 			URL:      req.URL,
 			Method:   req.Method,
 			Workers:  req.Workers,
@@ -64,7 +71,9 @@ func main() {
 			Timeout:  time.Duration(req.TimeoutMs) * time.Millisecond,
 			Headers:  req.Headers,
 			BypassCF: req.BypassCloudflare,
-		})
+		}
+		opts.Clamp() // enforce caps here too — bus callers bypass the gateway edge
+		return engine.LoadTest(context.Background(), opts)
 	})
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("checker: subscribe loadtest")
@@ -75,6 +84,10 @@ func main() {
 	stopJobs, err := b.Consume(ctx, "checker-jobs", bus.SubjectCheckJob, func(data []byte) error {
 		var job bus.CheckJob
 		if err := json.Unmarshal(data, &job); err != nil {
+			return errors.Join(bus.ErrDrop, err)
+		}
+		if err := urlguard.Check(job.URL); err != nil {
+			logger.Log.Warn().Err(err).Str("url", job.URL).Msg("checker: rejecting unsafe job target")
 			return errors.Join(bus.ErrDrop, err)
 		}
 		result := engine.Check(job.URL, time.Duration(job.TimeoutMs)*time.Millisecond, job.BypassCloudflare)

@@ -55,3 +55,17 @@ func TestRunCountsFailures(t *testing.T) {
 		t.Errorf("Failed = %d, want 10 (500s count as failures)", stats.Failed)
 	}
 }
+
+func TestClamp(t *testing.T) {
+	o := Options{Workers: 9000, RPS: 99999, Count: 9_000_000, Duration: time.Hour}
+	o.Clamp()
+	if o.Workers != MaxWorkers || o.RPS != MaxRPS || o.Count != MaxCount || o.Duration != MaxDuration {
+		t.Fatalf("clamp failed: %+v", o)
+	}
+	// under-limit values are untouched
+	u := Options{Workers: 5, RPS: 10, Count: 20, Duration: time.Second}
+	u.Clamp()
+	if u.Workers != 5 || u.RPS != 10 || u.Count != 20 || u.Duration != time.Second {
+		t.Fatalf("clamp altered in-range values: %+v", u)
+	}
+}

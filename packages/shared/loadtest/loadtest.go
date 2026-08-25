@@ -19,6 +19,32 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// Hard ceilings shared by every entrypoint (the gateway edge and the checker
+// bus path) so the platform can't be turned into an unbounded load generator.
+const (
+	MaxWorkers  = 500
+	MaxRPS      = 5000
+	MaxCount    = 1_000_000
+	MaxDuration = 10 * time.Minute
+)
+
+// Clamp caps the run parameters to the platform ceilings. Called at every
+// entrypoint so bus callers can't bypass the gateway's edge limits.
+func (o *Options) Clamp() {
+	if o.Workers > MaxWorkers {
+		o.Workers = MaxWorkers
+	}
+	if o.RPS > MaxRPS {
+		o.RPS = MaxRPS
+	}
+	if o.Count > MaxCount {
+		o.Count = MaxCount
+	}
+	if o.Duration > MaxDuration {
+		o.Duration = MaxDuration
+	}
+}
+
 // Options configures a load run. Either Count or Duration bounds the run;
 // when Duration > 0 it wins and the run is time-boxed.
 type Options struct {
