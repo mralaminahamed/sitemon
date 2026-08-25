@@ -63,21 +63,12 @@ func (am *AlertManager) sendAlert(url string, status string, statusCode int, ale
 		return nil
 	}
 
-	previousStatus, exists := am.lastStatus[url]
+	previousStatus := am.lastStatus[url]
 	am.lastStatus[url] = status
 
-	if !exists {
-		return nil
+	if alert := Classify(previousStatus, status); alert != "" {
+		return am.notifier.SendAlert(url, status, statusCode, alert)
 	}
-
-	if previousStatus == "UP" && status != "UP" {
-		return am.notifier.SendAlert(url, status, statusCode, "down")
-	}
-
-	if previousStatus != "UP" && status == "UP" {
-		return am.notifier.SendAlert(url, status, statusCode, "recovery")
-	}
-
 	return nil
 }
 
@@ -92,18 +83,11 @@ func (am *AlertManager) Evaluate(url, status string, statusCode int) error {
 		return nil
 	}
 
-	prev, exists := am.lastStatus[url]
+	prev := am.lastStatus[url]
 	am.lastStatus[url] = status
 
-	if !exists {
-		return nil
-	}
-
-	if prev == "UP" && status != "UP" {
-		return am.notifier.SendAlert(url, status, statusCode, "down")
-	}
-	if prev != "UP" && status == "UP" {
-		return am.notifier.SendAlert(url, status, statusCode, "recovery")
+	if alert := Classify(prev, status); alert != "" {
+		return am.notifier.SendAlert(url, status, statusCode, alert)
 	}
 	return nil
 }
