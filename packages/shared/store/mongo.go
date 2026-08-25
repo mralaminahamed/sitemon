@@ -4,6 +4,8 @@ package store
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/mralaminahamed/sitemon/packages/shared/models"
@@ -62,7 +64,26 @@ func NewCheckStore(ctx context.Context, uri, db string) (*CheckStore, error) {
 	_, _ = alerts.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{{Key: "url", Value: 1}, {Key: "timestamp", Value: -1}},
 	})
+	// Retention: TTL indexes cap unbounded growth. HISTORY_TTL_DAYS controls the
+	// checks collection (default 30, 0 disables); alerts are kept 90 days.
+	if days := envInt("HISTORY_TTL_DAYS", 30); days > 0 {
+		_, _ = col.Indexes().CreateOne(ctx, mongo.IndexModel{
+			Keys:    bson.D{{Key: "timestamp", Value: 1}},
+			Options: options.Index().SetExpireAfterSeconds(int32(days * 86400)),
+		})
+	}
+	_, _ = alerts.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "timestamp", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(90 * 86400),
+	})
 	return &CheckStore{client: client, col: col, monitors: db2.Collection("monitors"), alerts: alerts}, nil
+}
+
+func envInt(key string, fallback int) int {
+	if v, err := strconv.Atoi(os.Getenv(key)); err == nil {
+		return v
+	}
+	return fallback
 }
 
 // SaveAlert appends an alert to the history collection.
