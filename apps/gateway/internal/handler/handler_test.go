@@ -57,6 +57,45 @@ func TestChecksValidation(t *testing.T) {
 	}
 }
 
+func TestChecksTooManyURLs(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(`{"urls":[`)
+	for i := 0; i <= maxCheckURLs; i++ {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(`"https://x.com"`)
+	}
+	b.WriteString(`]}`)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/checks", strings.NewReader(b.String()))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	if err := newHandler().Checks(c); err != nil {
+		t.Fatalf("Checks: %v", err)
+	}
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestDeleteMonitorRequiresURL(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/monitors", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	if err := newHandler().DeleteMonitor(c); err != nil {
+		t.Fatalf("DeleteMonitor: %v", err)
+	}
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+}
+
 func TestSSLRequiresURL(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/ssl", nil)
