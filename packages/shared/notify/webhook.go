@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -75,9 +76,10 @@ type TelegramPayload struct {
 }
 
 type Notifier struct {
-	webhookURL string
-	provider   string
-	client     *http.Client
+	webhookURL     string
+	provider       string
+	telegramChatID string
+	client         *http.Client
 }
 
 func NewNotifier(webhookURL string) *Notifier {
@@ -91,8 +93,9 @@ func NewNotifier(webhookURL string) *Notifier {
 	}
 
 	return &Notifier{
-		webhookURL: webhookURL,
-		provider:   provider,
+		webhookURL:     webhookURL,
+		provider:       provider,
+		telegramChatID: os.Getenv("TELEGRAM_CHAT_ID"),
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -192,6 +195,9 @@ func (n *Notifier) sendDiscord(url, status string, statusCode int, timestamp, al
 }
 
 func (n *Notifier) sendTelegram(url, status string, statusCode int, timestamp, alertType string) error {
+	if n.telegramChatID == "" {
+		return fmt.Errorf("telegram: TELEGRAM_CHAT_ID is required")
+	}
 	emoji := "🔴"
 	if status == "UP" {
 		emoji = "🟢"
@@ -207,6 +213,7 @@ func (n *Notifier) sendTelegram(url, status string, statusCode int, timestamp, a
 	}
 
 	payload := TelegramPayload{
+		ChatID:    n.telegramChatID,
 		ParseMode: "Markdown",
 		Text:      text,
 	}
