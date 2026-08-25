@@ -68,16 +68,41 @@ func (r *Redis) StatusSnapshot(ctx context.Context) ([]models.HealthResult, erro
 	return out, nil
 }
 
-// Transition atomically stores the new status and returns the previous one
-// ("" if none), letting the caller detect up<->down changes across replicas.
-func (r *Redis) Transition(ctx context.Context, url, status string) (string, error) {
+// AlertState is the notifier's per-URL transition state, shared across replicas
+// via Redis. Fails counts consecutive non-UP results; Alerted records whether a
+// "down" alert has already fired for the current outage.
+type AlertState struct {
+	Fails   int  `json:"fails"`
+	Alerted bool `json:"alerted"`
+}
+
+// LoadAlertState returns the stored state for url (zero value if none).
+func (r *Redis) LoadAlertState(ctx context.Context, url string) (AlertState, error) {
 	ctx, cancel := context.WithTimeout(ctx, opTimeout)
 	defer cancel()
-	prev, err := r.c.GetSet(ctx, lastStatusNS+url, status).Result()
+	raw, err := r.c.Get(ctx, lastStatusNS+url).Result()
 	if err == redis.Nil {
-		return "", nil
+		return AlertState{}, nil
 	}
-	return prev, err
+	if err != nil {
+		return AlertState{}, err
+	}
+	var s AlertState
+	if err := json.Unmarshal([]byte(raw), &s); err != nil {
+		return AlertState{}, nil // treat corrupt state as fresh
+	}
+	return s, nil
+}
+
+// SaveAlertState persists the notifier state for url.
+func (r *Redis) SaveAlertState(ctx context.Context, url string, s AlertState) error {
+	ctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	data, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	return r.c.Set(ctx, lastStatusNS+url, data, 0).Err()
 }
 
 func (r *Redis) Close() error { return r.c.Close() }
