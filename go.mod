@@ -3,7 +3,7 @@ module github.com/mralaminahamed/sitemon
 go 1.27.0
 
 require (
-	github.com/anthropics/anthropic-sdk-go v1.66.0
+	github.com/anthropics/anthropic-sdk-go v1.71.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/gorilla/websocket v1.5.3
