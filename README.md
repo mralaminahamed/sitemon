@@ -125,9 +125,9 @@ make up
 
 `make up` brings up MongoDB, Redis, NATS and every service. Then:
 
-- Dashboard — http://localhost:5173
-- API — http://localhost:8080
-- Metrics — http://localhost:8080/metrics
+- Dashboard — http://localhost:8100
+- API — http://localhost:8101
+- Metrics — http://localhost:8101/metrics
 - Observability (Prometheus + Grafana) — `make obs-up`
 
 Without Docker:

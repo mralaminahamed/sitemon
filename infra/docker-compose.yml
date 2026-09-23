@@ -126,7 +126,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       NATS_URL: nats://nats:4222
     ports:
-      - "0.0.0.0:8080:8080"
+      - "127.0.0.1:8101:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s
@@ -180,7 +180,7 @@ services:
       - ../apps/web:/app
       - web-node-modules:/app/node_modules
     ports:
-      - "0.0.0.0:5173:5173"
+      - "127.0.0.1:8100:8100"
     depends_on:
       - gateway
     restart: unless-stopped

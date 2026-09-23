@@ -7,7 +7,7 @@ info:
     Phase 1 runs the engines in-process; the contract is stable across the
     later gRPC split.
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8101
 paths:
   /health:
     get:
