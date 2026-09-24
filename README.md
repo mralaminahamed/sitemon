@@ -128,7 +128,7 @@ make up
 - Dashboard — http://localhost:8100
 - API — http://localhost:8101
 - Metrics — http://localhost:8101/metrics
-- Observability (Prometheus + Grafana) — `make obs-up`
+- Observability (Prometheus + Grafana) — `docker compose -f infra/docker-compose.yml --profile observability up -d`
 
 Without Docker:
 
@@ -144,7 +144,6 @@ make build         # build every service binary
 make test          # go test ./...
 make test-race     # go test -race ./...
 make lint          # go vet + gofmt check
-make obs-up        # prometheus + grafana
 make logs s=gateway
 ```
 
