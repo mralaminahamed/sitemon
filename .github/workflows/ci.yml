@@ -24,9 +24,10 @@ jobs:
 
       - name: Build all services
         run: |
-          for svc in gateway checker scheduler notifier ai cli; do
+          for svc in gateway checker scheduler notifier ai; do
             go build -trimpath -o /tmp/$svc ./apps/$svc/cmd
           done
+          go build -trimpath -o /tmp/cli ./apps/cli
 
       - name: Test (race)
         run: CGO_ENABLED=1 go test -race ./...
