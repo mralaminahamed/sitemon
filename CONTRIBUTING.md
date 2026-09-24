@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to Sitemon!
 
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
+
 ## How to Contribute
 
 ### Reporting Bugs
@@ -23,12 +25,13 @@ Thank you for your interest in contributing to Sitemon!
 ### Pull Requests
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
+2. Create a short branch from `trunk`, prefixed with the change type (`feat/`, `fix/`, `docs/`, `chore/`): `git checkout -b feat/my-feature trunk`
 3. Make your changes
 4. Add tests if applicable
 5. Ensure code quality:
    - Run `go mod tidy`
-   - Run `go build` to verify compilation
+   - Run `go build ./...` to verify compilation
+   - Run `make lint` and `make test`
 6. Commit with clear messages
 7. Push to your fork
 8. Submit a pull request
@@ -43,11 +46,11 @@ cd sitemon
 # Install dependencies
 go mod tidy
 
-# Build
-go build -o sitemon .
+# Build every service binary into ./bin
+make build
 
-# Run tests (if any)
-go test ./...
+# Run tests
+make test
 ```
 
 ## Code Style
@@ -74,11 +77,11 @@ Before submitting a PR:
 
 ```bash
 # Build the project
-go build -o sitemon .
+go build ./...
 
-# Test the commands
-./sitemon check --url https://example.com
-./sitemon request -u https://example.com -n 10
+# Test the CLI commands
+go run ./apps/cli check --url https://example.com
+go run ./apps/cli request -u https://example.com -n 10
 ```
 
 ## License
