@@ -25,10 +25,12 @@ ps: ## Show stack status
 # ---- Go ---------------------------------------------------------------------
 build: ## Build all service binaries into ./bin
 	@mkdir -p bin
-	@for svc in gateway checker scheduler notifier ai cli; do \
+	@for svc in gateway checker scheduler notifier ai; do \
 	  echo "building $$svc"; \
 	  go build -trimpath -o bin/$$svc ./apps/$$svc/cmd || exit 1; \
 	done
+	@echo "building cli"
+	@go build -trimpath -o bin/cli ./apps/cli
 
 test: ## Run unit tests
 	go test ./...
