@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in Sitemon does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: For security problems, use the security policy instead of this form.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - gateway
+        - checker
+        - scheduler
+        - notifier
+        - ai
+        - cli
+        - web
+        - infra (compose, k8s, Caddy, Grafana, Prometheus)
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. make up
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Go version, Docker version, and how you run it (make up, prod compose, k8s, binary).
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output, for example from `make logs s=<service>`. Remove API keys and secrets.
+      render: shell
